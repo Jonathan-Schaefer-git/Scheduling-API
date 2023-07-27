@@ -37,12 +37,21 @@ type Employee = {
     Wage:float<Euro/Hour>
 }
 
+type Problem = {
+    workers:Employee list
+    shifts:ShiftInfo list
+    weeksAmount:int
+    maxHoursPerWeek:float<Hour>
+}
 
 let version = "beta-1.0.0"
 
-let constructProblem (shifts:ShiftInfo list) (workers: Employee list) (workWeeksAmount:int) (maxHoursPerWeek:float<Hour>) =
+let constructProblem (problem:Problem) =
+    let workers = problem.workers
+    let shifts = problem.shifts
+    let maxHoursPerWeek = problem.maxHoursPerWeek
 
-    let workWeeks = [1 .. workWeeksAmount]
+    let workWeeks = [1 .. problem.weeksAmount]
 
     let workersWage =
         [for record in workers -> record, record.Wage] |> SMap.ofList
