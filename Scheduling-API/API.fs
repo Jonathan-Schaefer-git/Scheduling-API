@@ -2,6 +2,7 @@
 open Suave
 open System
 open Expecto
+open System.IO
 open Suave.Http
 open Suave.Filters
 open Suave.Operators
@@ -12,9 +13,11 @@ open Suave.Authentication
 open Newtonsoft.Json.Converters
 
 
+let readInJson() =
+    let settings = JsonSerializerSettings()
+    settings.FloatParseHandling <- FloatParseHandling.Double
+    JsonConvert.DeserializeObject<Problem>(File.ReadAllText("info.json"), settings)
 
-let solveIssue (json:string) =
-    0
 
 let parseJsonBody (req: HttpRequest) =
     let settings = JsonSerializerSettings()
@@ -30,7 +33,7 @@ let apiRoutes =
         POST >=> choose [
             path "/api/solve" >=> 
                 request (fun req -> 
-                        req |> parseJsonBody
+                        OK (sprintf "%A" (req |> parseJsonBody |> constructProblem))
                     )
         ]
         NOT_FOUND "No appropriate handler found"
@@ -40,11 +43,12 @@ let apiRoutes =
 [<EntryPoint>]
 let main argv =
 
-    let myCfg =
-        { Suave.Web.defaultConfig with
-            bindings = [ HttpBinding.createSimple HTTP "127.0.0.1" 2000 ]
-        }
+    //let myCfg =
+    //    { Suave.Web.defaultConfig with
+    //        bindings = [ HttpBinding.createSimple HTTP "127.0.0.1" 8080 ]
+    //    }
 
-    let app = choose [apiRoutes; NOT_FOUND "Route not found."]
-    startWebServer myCfg app
+    //let app = choose [apiRoutes; NOT_FOUND "Route not found."]
+    //startWebServer myCfg app
+    readInJson() |> ModularisedScheduling.constructProblem |> printfn "%A"
     0 // Return an integer exit code
