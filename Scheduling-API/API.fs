@@ -13,15 +13,17 @@ open Suave.RequestErrors
 let apiRoutes =
     choose [
         GET >=> choose [
-            path "/api/hello" >=> OK "Hello, Suave!"
-            pathScan "/api/greet/%s" (fun name -> OK (sprintf "Hello, %s!" name))
+            path "/api/version" >=> OK (sprintf "%s" ModularisedScheduling.version)
+        ]
+        POST >=> choose [
+            path "/api/solve" 
         ]
     ]
 
 
 [<EntryPoint>]
 let main argv =
+    ModularisedScheduling.solve_test()
     //let app = choose [apiRoutes; NOT_FOUND "Route not found."]
     //startWebServer Suave.Web.defaultConfig app
-    solve_test()
     0 // Return an integer exit code

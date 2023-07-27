@@ -38,7 +38,11 @@ type Employee = {
 }
 
 
-let constructProblem (shifts:ShiftInfo list) (workers: Employee list) (workWeekAmount:int) (maxHoursPerWeek:float<Hour>) =
+let version = "beta-1.0.0"
+
+let constructProblem (shifts:ShiftInfo list) (workers: Employee list) (workWeeksAmount:int) (maxHoursPerWeek:float<Hour>) =
+
+    let workWeeks = [1 .. workWeeksAmount]
 
     let workersWage =
         [for record in workers -> record, record.Wage] |> SMap.ofList
@@ -61,11 +65,12 @@ let constructProblem (shifts:ShiftInfo list) (workers: Employee list) (workWeekA
     let shouldWork =
         DecisionBuilder<Shift> "Has to work" {
             for employee in workers do
-                for day in workdays do
-                    for shift in shifts ->
-                        Boolean
-        } |> SMap3.ofSeq
-
+                for week in workWeeks do
+                    for day in workdays do
+                        for shift in shifts ->
+                            Boolean
+        } |> SMap4.ofSeq
+        
     //! Constraints
     (*
         We need more or an equal amount of workers of the matching profession to be working per shift requirements:
@@ -81,34 +86,39 @@ let constructProblem (shifts:ShiftInfo list) (workers: Employee list) (workWeekA
     // Ensures sufficient, qualified staffing
     let qualifiedConstraints =
         ConstraintBuilder "Is qualified and enough workers of in shift" {
-            for day in workdays do
-                for shift in shifts do
-                    for (reqWorkers, qualification) in shift.RequiredPersonal ->
-                        sum(shouldWork.[Where (fun employee -> employee.Occupation = qualification), day, shift]) >== float(reqWorkers) * 1.0<Shift>
+            for week in workWeeks do
+                for day in workdays do
+                    for shift in shifts do
+                        for (reqWorkers, qualification) in shift.RequiredPersonal ->
+                            sum(shouldWork.[Where (fun employee -> employee.Occupation = qualification), week, day, shift]) >== float(reqWorkers) * 1.0<Shift>
         }
 
     // Maximum worktime per week
     let maxHoursConstraints =
         ConstraintBuilder "Maximum Constraint" {
-            for employee : Employee in workers ->
-                sum (shouldWork.[employee,All,All] .* shiftLength) <== maxHoursPerWeek
+            
+            for employee : Employee in workers do
+                for week in workWeeks ->
+                    sum (shouldWork.[employee,week,All,All] .* shiftLength) <== maxHoursPerWeek
         }
     
     // No double shift on one day can be worked
     let noDoubleShiftConstraint =
         ConstraintBuilder "No Double Shift Constraint" {
             for employee in workers do
-                for day in workdays ->
-                sum(shouldWork.[employee,day, All]) <== 1.0<Shift>
+                for week in workWeeks do
+                    for day in workdays ->
+                        sum(shouldWork.[employee,week,day,All]) <== 1.0<Shift>
     }
 
     //! Objectives
     let minimizeStrain =
         [
             for employee in workers do
-                for day in workdays do
-                    for shift in shifts ->
-                    sum (shouldWork.[employee, day, All] .* strainOfShifts)
+                for week in workWeeks do
+                    for day in workdays do
+                        for shift in shifts ->
+                            sum (shouldWork.[employee,week,day,All] .* strainOfShifts)
         ]
         |> List.sum
         |> Objective.create "Minimize strain on workers" Minimize
@@ -116,44 +126,54 @@ let constructProblem (shifts:ShiftInfo list) (workers: Employee list) (workWeekA
     let minimizeCosts =
         [
             for employee in workers do
-                for day in workdays do
-                    for shift in shifts ->
-                        shouldWork.[employee,day,shift] * shiftLength.[shift] * workersWage.[employee]
+                for week in workWeeks do
+                    for day in workdays do
+                        for shift in shifts ->
+                            shouldWork.[employee,week,day,shift] * shiftLength.[shift] * workersWage.[employee]
         ]
         |> List.sum
         |> Objective.create "Minimize Cost Target" Minimize
 
     //todo Implement a way to minimize shift switches
     //note Maybe minimize cross product? As it is a matrix?
-    
+
+    let printDash() =
+        for x in [0..100] do
+            printf "-"
+        printf "\n"
+
     //! Printing method
     let printResult result =
         match result with
         | Optimal solution ->
             printfn "Minimal personal costs:      %.2f" (Objective.evaluate solution minimizeCosts)
             printfn "Minimal strain on employees: %.2f" (Objective.evaluate solution minimizeStrain)
-            let values = Solution.getValues solution shouldWork |> SMap3.ofMap
+            let values = Solution.getValues solution shouldWork |> SMap4.ofMap
             for employee in workers do
                 let solutionmatrix =
-                    [for day in workdays do [for shift in shifts -> values.[employee, day, shift]]]
+                    [for week in workWeeks do [for day in workdays do [for shift in shifts -> values.[employee,week,day,shift]]]]
                 printfn "%s" (employee.Name)
                 for shift in shifts do
                     printf "(%s) " (shift.Name)
                 printf "\n"
-                for day in workdays do 
-                    printf "%A\n" (solutionmatrix[day - 1])
-            
+                for week in workWeeks do
+                    for day in workdays do 
+                        printf "%A\n" (solutionmatrix[week - 1][day - 1])
+
             //! Print working plan by Name
-            
+
             let formattedTable =
                 [
-                    for day in workdays do
+                    for week in workWeeks do 
                     [
-                        for shift in shifts do
+                        for day in workdays do
                         [
-                            let x = values.[All,day, shift]
-                            for employee in workers do
-                                if x.[employee] = 1.0<Shift> then yield employee.Name
+                            for shift in shifts do
+                            [
+                                let x = values.[All,week,day, shift]
+                                for employee in workers do
+                                    if x.[employee] = 1.0<Shift> then yield employee.Name
+                            ]
                         ]
                     ]
                 ]
@@ -163,12 +183,12 @@ let constructProblem (shifts:ShiftInfo list) (workers: Employee list) (workWeekA
                     printf "(%s) " (shift.Name)
             printf "\n"
 
-            for x in [0..100] do
-                printf "-"
-            printf "\n"
+            printDash()
 
-            for day in workdays do
-                printfn "%d | %A" (day) (formattedTable.[day - 1])
+            for week in workWeeks do
+                for day in workdays do
+                    printfn "%d | %A" (day) (formattedTable[week - 1][day - 1])
+                printDash()
             
 
         | _ -> printfn $"Unable to solve. Error: %A{result}. This might be because of a problem in the domain model or a conflicting constraint like the 'Max working hours'"
@@ -204,4 +224,4 @@ let solve_test() =
             {Name="Tucker";   Occupation = "Nurse";   Wage=18.0<Euro/Hour>}
         ]
 
-    constructProblem shifts workers 1 50.0<Hour>
+    constructProblem shifts workers 4 50.0<Hour>
