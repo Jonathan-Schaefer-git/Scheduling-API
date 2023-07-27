@@ -203,25 +203,27 @@ let constructProblem (shifts:ShiftInfo list) (workers: Employee list) (workWeeks
     |> Solver.solve Settings.basic
     |> printResult
 
-let solve_test() =
-    let shifts = 
-        [
-            {Name="Morning Shift"; RequiredPersonal=[(1<Worker/Shift>, "EMT"); (1<Worker/Shift>,"Doctor")];                             Length=8.0<Hour/Shift>;    Strain=1.2<Strain>}
-            {Name="Late Shift";    RequiredPersonal=[(1<Worker/Shift>, "EMT"); (1<Worker/Shift>,"Doctor"); (1<Worker/Shift>, "Nurse")]; Length=8.0<Hour/Shift>;    Strain=1.0<Strain>}
-            {Name="Night Shift";   RequiredPersonal=[(1<Worker/Shift>, "Doctor")];                                                      Length=8.0<Hour/Shift>;    Strain=1.8<Strain>}
-        ]
 
-    let workers = 
-        [
-            {Name="Jenna";    Occupation = "EMT";     Wage=25.0<Euro/Hour>}
-            {Name="Hannah";   Occupation = "Nurse";   Wage=20.0<Euro/Hour>}
-            {Name="George";   Occupation = "Doctor";  Wage=30.0<Euro/Hour>}
-            {Name="Freddy";   Occupation = "Doctor";  Wage=31.0<Euro/Hour>}
-            {Name="Kiley";    Occupation = "Doctor";  Wage=28.0<Euro/Hour>}
-            {Name="Delta";    Occupation = "EMT";     Wage=24.0<Euro/Hour>}
-            {Name="Marlee";   Occupation = "Doctor";  Wage=34.0<Euro/Hour>}
-            {Name="Lawrence"; Occupation = "EMT";     Wage=25.0<Euro/Hour>}
-            {Name="Tucker";   Occupation = "Nurse";   Wage=18.0<Euro/Hour>}
-        ]
+//! Unit test
+//let solve_test() =
+//    let shifts = 
+//        [
+//            {Name="Morning Shift"; RequiredPersonal=[(1<Worker/Shift>, "EMT"); (1<Worker/Shift>,"Doctor")];                             Length=8.0<Hour/Shift>;    Strain=1.2<Strain>}
+//            {Name="Late Shift";    RequiredPersonal=[(1<Worker/Shift>, "EMT"); (1<Worker/Shift>,"Doctor"); (1<Worker/Shift>, "Nurse")]; Length=8.0<Hour/Shift>;    Strain=1.0<Strain>}
+//            {Name="Night Shift";   RequiredPersonal=[(1<Worker/Shift>, "Doctor")];                                                      Length=8.0<Hour/Shift>;    Strain=1.8<Strain>}
+//        ]
 
-    constructProblem shifts workers 4 50.0<Hour>
+//    let workers = 
+//        [
+//            {Name="Jenna";    Occupation = "EMT";     Wage=25.0<Euro/Hour>}
+//            {Name="Hannah";   Occupation = "Nurse";   Wage=20.0<Euro/Hour>}
+//            {Name="George";   Occupation = "Doctor";  Wage=30.0<Euro/Hour>}
+//            {Name="Freddy";   Occupation = "Doctor";  Wage=31.0<Euro/Hour>}
+//            {Name="Kiley";    Occupation = "Doctor";  Wage=28.0<Euro/Hour>}
+//            {Name="Delta";    Occupation = "EMT";     Wage=24.0<Euro/Hour>}
+//            {Name="Marlee";   Occupation = "Doctor";  Wage=34.0<Euro/Hour>}
+//            {Name="Lawrence"; Occupation = "EMT";     Wage=25.0<Euro/Hour>}
+//            {Name="Tucker";   Occupation = "Nurse";   Wage=18.0<Euro/Hour>}
+//        ]
+
+//    constructProblem shifts workers 4 50.0<Hour>

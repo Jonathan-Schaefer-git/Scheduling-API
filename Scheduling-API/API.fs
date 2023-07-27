@@ -16,8 +16,9 @@ let apiRoutes =
             path "/api/version" >=> OK (sprintf "%s" ModularisedScheduling.version)
         ]
         POST >=> choose [
-            path "/api/solve" 
+            path "/api/solve/{id}" >=> OK solve_test
         ]
+        NOT_FOUND "No appropriate handler found"
     ]
 
 
