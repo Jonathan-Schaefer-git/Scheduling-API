@@ -1,4 +1,5 @@
 ﻿open ModularisedScheduling
+open Protocol
 open Suave
 open System
 open Expecto
@@ -41,7 +42,6 @@ let apiRoutes =
         ]
         NOT_FOUND "No appropriate handler found. Refer to the source code for the appropriate handlers"
     ]
-
 
 [<EntryPoint>]
 let main argv =

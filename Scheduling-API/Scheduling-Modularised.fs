@@ -1,9 +1,11 @@
 ﻿module ModularisedScheduling
 
+open Protocol
 open Flips
 open Flips.Types
 open Flips.SliceMap
 open Flips.UnitsOfMeasure
+open System.Diagnostics
 
 [<Measure>] type Euro
 [<Measure>] type Hour
@@ -43,6 +45,8 @@ type Problem = {
     weeksAmount:int
     maxHoursPerWeek:float<Hour>
 }
+
+
 
 let version = "beta-1.0.0"
 
@@ -172,15 +176,21 @@ let constructProblem (problem:Problem) =
         | _ -> [[[[sprintf "[Error]: Model infeasible -> %A" result]]]]
 
 
+    // Prepare for stats extraction
+    let stopwatch = Stopwatch.StartNew()
     //! Solve model
-    minimizeCosts
-    |> Model.create
-    |> Model.addObjective minimizeStrain
-    |> Model.addConstraints qualifiedConstraints
-    |> Model.addConstraints noDoubleShiftConstraint
-    |> Model.addConstraints maxHoursConstraints
-    |> Solver.solve Settings.basic
-    |> retrieveSolutionValues
+    let solved = 
+        minimizeCosts
+        |> Model.create
+        |> Model.addObjective minimizeStrain
+        |> Model.addConstraints qualifiedConstraints
+        |> Model.addConstraints noDoubleShiftConstraint
+        |> Model.addConstraints maxHoursConstraints
+        |> Solver.solve Settings.basic
+        
+    stopwatch.Stop()
+    {workers=workers.Length; shifts=shifts.Length * 7 * problem.weeksAmount; weeks=problem.weeksAmount; time=stopwatch.ElapsedMilliseconds} |> writeProtocol
+    solved |> retrieveSolutionValues
 
 
 //let printResult result =
