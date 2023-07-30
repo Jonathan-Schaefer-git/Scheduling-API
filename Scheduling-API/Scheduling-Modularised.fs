@@ -155,9 +155,10 @@ let constructProblem (problem:Problem) =
             printf "-"
         printf "\n"
 
-    let retrieveSolutionValues (result:SolveResult) =
+    let retrieveSolutionValues (result:SolveResult) (stopwatch:Stopwatch) =
         match result with
         | Optimal solution ->
+            {workers=workers.Length; shifts=shifts.Length * 7 * problem.weeksAmount; weeks=problem.weeksAmount; time=stopwatch.ElapsedMilliseconds; success=true} |> writeProtocol
             let values = Solution.getValues solution shouldWork |> SMap4.ofMap
             [
                 for week in workWeeks do 
@@ -173,7 +174,9 @@ let constructProblem (problem:Problem) =
                     ]
                 ]
             ]
-        | _ -> [[[[sprintf "[Error]: Model infeasible -> %A" result]]]]
+        | _ -> 
+            {workers=workers.Length; shifts=shifts.Length * 7 * problem.weeksAmount; weeks=problem.weeksAmount; time=stopwatch.ElapsedMilliseconds; success=false} |> writeProtocol
+            [[[[sprintf "[Error]: Model infeasible -> %A" result]]]]
 
 
     // Prepare for stats extraction
@@ -189,8 +192,7 @@ let constructProblem (problem:Problem) =
         |> Solver.solve Settings.basic
         
     stopwatch.Stop()
-    {workers=workers.Length; shifts=shifts.Length * 7 * problem.weeksAmount; weeks=problem.weeksAmount; time=stopwatch.ElapsedMilliseconds} |> writeProtocol
-    solved |> retrieveSolutionValues
+    retrieveSolutionValues solved stopwatch
 
 
 //let printResult result =
