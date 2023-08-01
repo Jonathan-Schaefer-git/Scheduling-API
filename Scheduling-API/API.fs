@@ -43,6 +43,11 @@ let apiRoutes =
 
 [<EntryPoint>]
 let main argv =
+
+    ModularisedScheduling.testCase() |> JsonConvert.SerializeObject |> printfn "%s"
+
+    ModularisedScheduling.testCase() |> constructProblem |> ignore
+
     let myCfg =
        { Suave.Web.defaultConfig with
            bindings = [ HttpBinding.createSimple HTTP "127.0.0.1" 8080 ]
