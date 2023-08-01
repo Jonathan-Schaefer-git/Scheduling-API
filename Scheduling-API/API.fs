@@ -46,14 +46,14 @@ let main argv =
 
     ModularisedScheduling.testCase() |> JsonConvert.SerializeObject |> printfn "%s"
 
-    ModularisedScheduling.testCase() |> constructProblem |> ignore
+    ModularisedScheduling.testCase() |> constructProblem |> printfn "%A"
 
-    let myCfg =
-       { Suave.Web.defaultConfig with
-           bindings = [ HttpBinding.createSimple HTTP "127.0.0.1" 8080 ]
-       }
+    // let myCfg =
+    //    { Suave.Web.defaultConfig with
+    //        bindings = [ HttpBinding.createSimple HTTP "127.0.0.1" 8080 ]
+    //    }
 
-    let app = choose [apiRoutes; NOT_FOUND "Route not found. Refer to the source code of the api"]
-    startWebServer myCfg app
+    // let app = choose [apiRoutes; NOT_FOUND "Route not found. Refer to the source code of the api"]
+    // startWebServer myCfg app
 
     0 // Return an integer exit code

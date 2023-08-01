@@ -67,7 +67,7 @@ type Problem = {
 
 
 
-let version = "beta-1.0.2 >=> Experimental Feature: Concurrent shift and dynamic Timeslots "
+let version = "beta-1.0.3 >=> Experimental Feature: Concurrent shift and dynamic Timeslots "
 
 
 let constructProblem (problem:Problem) =
@@ -129,7 +129,7 @@ let constructProblem (problem:Problem) =
     
     // Ensures sufficient, qualified staffing
     let qualifiedConstraints =
-        ConstraintBuilder "Is qualified and enough workers of in shift" {
+        ConstraintBuilder "Ensure qualified personell and enough of workers of in shift" {
             for week in schedule.weeks do
                 for day in week.days do
                     for timeSlot in day.timeSlots do
@@ -151,8 +151,9 @@ let constructProblem (problem:Problem) =
         ConstraintBuilder "No Double Shift Constraint" {
             for employee in workers do
                 for week in schedule.weeks do
-                    for day in week.days ->
-                        sum(shouldWork.[employee,week,day,All,All]) <== 1.0<Shift>
+                    for day in week.days do
+                        for timeSlot in day.timeSlots ->
+                        sum(shouldWork.[employee,week,day,timeSlot,All]) <== 1.0<Shift>
         }
 
     //! Objectives
@@ -309,8 +310,8 @@ let testCase() =
            {Name="Kiley";    Occupation = "Doctor";  Wage=28.0<Euro/Hour>}
            {Name="Delta";    Occupation = "EMT";     Wage=24.0<Euro/Hour>}
            {Name="Marlee";   Occupation = "Doctor";  Wage=34.0<Euro/Hour>}
-           {Name="Lawrence"; Occupation = "EMT";     Wage=25.0<Euro/Hour>}
            {Name="Tucker";   Occupation = "Nurse";   Wage=18.0<Euro/Hour>}
+           {Name="Lawrence"; Occupation = "EMT";     Wage=25.0<Euro/Hour>}
        ]
 
     let simplexschedule =
@@ -332,4 +333,4 @@ let testCase() =
                 }]
         }
 
-    {workers=workers;schedule=simplexschedule;maxHoursPerWeek=50.0<Hour>;options={expenseMinimizing=true;strainMinimizing=true;capMaximumWorkingHoursConstraint=true;ensureQualifiedPersonellConstraint=true;noDoubleShiftConstraint=true}}
+    {workers=workers;schedule=simplexschedule;maxHoursPerWeek=50.0<Hour>;options={expenseMinimizing=true;strainMinimizing=true;capMaximumWorkingHoursConstraint=true;ensureQualifiedPersonellConstraint=false;noDoubleShiftConstraint=false}}
