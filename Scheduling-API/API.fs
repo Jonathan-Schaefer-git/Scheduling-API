@@ -37,7 +37,7 @@ let apiRoutes =
                         | Some problem -> 
                             printfn "%s" req.rawQuery
                             OK (sprintf "%A" (problem |> constructProblem))
-                        | None -> BAD_REQUEST "The JSON submitted was found to be invalid. Try JSON akin to the wiki one"
+                        | None -> BAD_REQUEST "The JSON submitted was found to be invalid. Try JSON akin to the example"
                     )
         ]
         NOT_FOUND "No appropriate handler found. Refer to the source code for the appropriate handlers"
@@ -51,7 +51,7 @@ let main argv =
            bindings = [ HttpBinding.createSimple HTTP "127.0.0.1" 8080 ]
        }
 
-    let app = choose [apiRoutes; NOT_FOUND "Route not found."]
+    let app = choose [apiRoutes; NOT_FOUND "Route not found. Refer to the source code of the api"]
     startWebServer myCfg app
 
     0 // Return an integer exit code

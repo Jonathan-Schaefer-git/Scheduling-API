@@ -23,6 +23,14 @@ open System.Diagnostics
 *)
 // As well as minimizes possible code duplications and maximizes extensibility and modularity
 
+type Options = {
+    expenseMinimizing:bool
+    strainMinimizing:bool
+    ensureQualifiedPersonellConstraint:bool
+    noDoubleShiftConstraint:bool
+    capMaximumWorkingHours:bool
+}
+
 
 //! Domain Model
 type ShiftInfo = {
@@ -31,7 +39,6 @@ type ShiftInfo = {
     Length: float<Hour/Shift>
     Strain: float<Strain/Shift>
 }
-
 
 type Employee = {
     Name:string
@@ -44,11 +51,13 @@ type Problem = {
     shifts:ShiftInfo list
     weeksAmount:int
     maxHoursPerWeek:float<Hour>
+    options:Options
 }
 
 
 
-let version = "beta-1.0.0"
+let version = "beta-1.0.1"
+
 
 let constructProblem (problem:Problem) =
     let workers = problem.workers
@@ -104,7 +113,7 @@ let constructProblem (problem:Problem) =
                     for shift in shifts do
                         for (reqWorkers, qualification) in shift.RequiredPersonal ->
                             sum(shouldWork.[Where (fun employee -> employee.Occupation = qualification), week, day, shift]) >== float(reqWorkers) * 1.0<Shift>
-        }
+        } |> List.ofSeq
 
     // Maximum worktime per week
     let maxHoursConstraints =
@@ -113,7 +122,7 @@ let constructProblem (problem:Problem) =
             for employee : Employee in workers do
                 for week in workWeeks ->
                     sum (shouldWork.[employee,week,All,All] .* shiftLength) <== maxHoursPerWeek
-        }
+        } |> List.ofSeq
     
     // No double shift on one day can be worked
     let noDoubleShiftConstraint =
@@ -122,7 +131,7 @@ let constructProblem (problem:Problem) =
                 for week in workWeeks do
                     for day in workdays ->
                         sum(shouldWork.[employee,week,day,All]) <== 1.0<Shift>
-    }
+        } |> List.ofSeq
 
     //! Objectives
     let minimizeStrain =
@@ -183,12 +192,23 @@ let constructProblem (problem:Problem) =
     let stopwatch = Stopwatch.StartNew()
     //! Solve model
     let solved = 
-        minimizeCosts
-        |> Model.create
-        |> Model.addObjective minimizeStrain
-        |> Model.addConstraints qualifiedConstraints
-        |> Model.addConstraints noDoubleShiftConstraint
-        |> Model.addConstraints maxHoursConstraints
+        let options = problem.options
+        let mutable model = 
+            match (options.expenseMinimizing, options.strainMinimizing) with
+            | true, false -> Model.create minimizeCosts
+            | false, true -> Model.create minimizeStrain
+            | _ -> 
+                Model.create minimizeCosts
+                |> Model.addObjective minimizeStrain
+
+        if options.ensureQualifiedPersonellConstraint then
+            model.Constraints <- qualifiedConstraints
+        if options.noDoubleShiftConstraint then
+            model.Constraints <- noDoubleShiftConstraint
+        if options.capMaximumWorkingHours then
+            model.Constraints <- model.Constraints @ maxHoursConstraints
+
+        model
         |> Solver.solve Settings.basic
         
     stopwatch.Stop()
