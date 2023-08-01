@@ -31,12 +31,18 @@ type Options = {
     capMaximumWorkingHoursConstraint:bool
 }
 
-
 //! Domain Model
+
+// Every day has a certain amount of time slots (default: 3) which can each contrain 0, 1 or more shifts which need to be staffed
+type TimeSlot =
+    | Slot of int
+
+
 type ShiftInfo = {
     Name: string
-    RequiredPersonal: (int<Worker/Shift> * string) list
+    TimeSlot:TimeSlot
     Length: float<Hour/Shift>
+    RequiredPersonal: (int<Worker/Shift> * string) list
     Strain: float<Strain/Shift>
 }
 
@@ -49,6 +55,7 @@ type Employee = {
 type Problem = {
     workers:Employee list
     shifts:ShiftInfo list
+    timeSlots:int
     weeksAmount:int
     maxHoursPerWeek:float<Hour>
     options:Options
@@ -56,7 +63,7 @@ type Problem = {
 
 
 
-let version = "beta-1.0.1"
+let version = "beta-1.0.2 >=> Experimental concurrent shift preview"
 
 
 let constructProblem (problem:Problem) =
@@ -275,9 +282,9 @@ let constructProblem (problem:Problem) =
 let testCase() =
     let shifts = 
        [    
-           {Name="Morning Shift"; RequiredPersonal=[(1<Worker/Shift>, "EMT"); (1<Worker/Shift>,"Doctor")];                             Length=8.0<Hour/Shift>;    Strain=1.2<Strain/Shift>}
-           {Name="Late Shift";    RequiredPersonal=[(1<Worker/Shift>, "EMT"); (1<Worker/Shift>,"Doctor"); (1<Worker/Shift>, "Nurse")]; Length=8.0<Hour/Shift>;    Strain=1.0<Strain/Shift>}
-           {Name="Night Shift";   RequiredPersonal=[(1<Worker/Shift>, "Doctor")];                                                      Length=8.0<Hour/Shift>;    Strain=1.8<Strain/Shift>}
+           {Name="Morning Shift"; TimeSlot=Slot 1; RequiredPersonal=[(1<Worker/Shift>, "EMT"); (1<Worker/Shift>,"Doctor")];                             Length=8.0<Hour/Shift>;    Strain=1.2<Strain/Shift>}
+           {Name="Late Shift";    TimeSlot=Slot 2; RequiredPersonal=[(1<Worker/Shift>, "EMT"); (1<Worker/Shift>,"Doctor"); (1<Worker/Shift>, "Nurse")]; Length=8.0<Hour/Shift>;    Strain=1.0<Strain/Shift>}
+           {Name="Night Shift";   TimeSlot=Slot 3; RequiredPersonal=[(1<Worker/Shift>, "Doctor")];                                                      Length=8.0<Hour/Shift>;    Strain=1.8<Strain/Shift>}
        ]
 
     let workers = 
