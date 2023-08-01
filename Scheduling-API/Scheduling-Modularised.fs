@@ -28,7 +28,7 @@ type Options = {
     strainMinimizing:bool
     ensureQualifiedPersonellConstraint:bool
     noDoubleShiftConstraint:bool
-    capMaximumWorkingHours:bool
+    capMaximumWorkingHoursConstraint:bool
 }
 
 
@@ -193,6 +193,9 @@ let constructProblem (problem:Problem) =
     //! Solve model
     let solved = 
         let options = problem.options
+
+        
+
         let mutable model = 
             match (options.expenseMinimizing, options.strainMinimizing) with
             | true, false -> Model.create minimizeCosts
@@ -202,11 +205,11 @@ let constructProblem (problem:Problem) =
                 |> Model.addObjective minimizeStrain
 
         if options.ensureQualifiedPersonellConstraint then
-            model.Constraints <- qualifiedConstraints
+            model <- Model.addConstraints qualifiedConstraints model
         if options.noDoubleShiftConstraint then
-            model.Constraints <- noDoubleShiftConstraint
-        if options.capMaximumWorkingHours then
-            model.Constraints <- model.Constraints @ maxHoursConstraints
+            model <- Model.addConstraints noDoubleShiftConstraint model
+        if options.capMaximumWorkingHoursConstraint then
+            model <- Model.addConstraints maxHoursConstraints model
 
         model
         |> Solver.solve Settings.basic
@@ -271,7 +274,7 @@ let constructProblem (problem:Problem) =
 //! Unit test
 let testCase() =
     let shifts = 
-       [
+       [    
            {Name="Morning Shift"; RequiredPersonal=[(1<Worker/Shift>, "EMT"); (1<Worker/Shift>,"Doctor")];                             Length=8.0<Hour/Shift>;    Strain=1.2<Strain/Shift>}
            {Name="Late Shift";    RequiredPersonal=[(1<Worker/Shift>, "EMT"); (1<Worker/Shift>,"Doctor"); (1<Worker/Shift>, "Nurse")]; Length=8.0<Hour/Shift>;    Strain=1.0<Strain/Shift>}
            {Name="Night Shift";   RequiredPersonal=[(1<Worker/Shift>, "Doctor")];                                                      Length=8.0<Hour/Shift>;    Strain=1.8<Strain/Shift>}
@@ -290,4 +293,4 @@ let testCase() =
            {Name="Tucker";   Occupation = "Nurse";   Wage=18.0<Euro/Hour>}
        ]
 
-    {workers=workers;shifts=shifts;weeksAmount=4;maxHoursPerWeek=50.0<Hour>;}
+    {workers=workers;shifts=shifts;weeksAmount=4;maxHoursPerWeek=50.0<Hour>;options={expenseMinimizing=true;strainMinimizing=true;capMaximumWorkingHoursConstraint=true;ensureQualifiedPersonellConstraint=true;noDoubleShiftConstraint=true}}

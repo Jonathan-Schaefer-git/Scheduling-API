@@ -32,10 +32,8 @@ let apiRoutes =
         POST >=> choose [
             path "/api/solve" >=> 
                 request (fun req -> 
-                        
                         match req.form.[0] |> fst |> jsonToProblem with
                         | Some problem -> 
-                            printfn "%s" req.rawQuery
                             OK (sprintf "%A" (problem |> constructProblem))
                         | None -> BAD_REQUEST "The JSON submitted was found to be invalid. Try JSON akin to the example"
                     )
@@ -45,7 +43,6 @@ let apiRoutes =
 
 [<EntryPoint>]
 let main argv =
-
     let myCfg =
        { Suave.Web.defaultConfig with
            bindings = [ HttpBinding.createSimple HTTP "127.0.0.1" 8080 ]
