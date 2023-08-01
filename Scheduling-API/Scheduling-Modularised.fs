@@ -234,9 +234,7 @@ let constructProblem (problem:Problem) =
 //                for week in workWeeks do
 //                    for day in workdays do 
 //                        printf "%A\n" (solutionmatrix[week - 1][day - 1])
-
 //            //! Print working plan by Name
-
 //            let formattedTable =
 //                [
 //                    for week in workWeeks do 
@@ -252,20 +250,15 @@ let constructProblem (problem:Problem) =
 //                        ]
 //                    ]
 //                ]
-
 //            printfn "Schedule: "
 //            for shift in shifts do
 //                    printf "(%s) " (shift.Name)
 //            printf "\n"
-
 //            printDash()
-
 //            for week in workWeeks do
 //                for day in workdays do
 //                    printfn "%d | %A" (day) (formattedTable[week - 1][day - 1])
 //                printDash()
-            
-
 //        | _ -> printfn $"Unable to solve. Error: %A{result}. This might be because of a problem in the domain model or a conflicting constraint like the 'Max working hours'"
 
 
