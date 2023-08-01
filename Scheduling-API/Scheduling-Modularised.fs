@@ -34,13 +34,9 @@ type Options = {
 //! Domain Model
 
 // Every day has a certain amount of time slots (default: 3) which can each contrain 0, 1 or more shifts which need to be staffed
-type TimeSlot =
-    | Slot of int
-
 
 type ShiftInfo = {
     Name: string
-    TimeSlot:TimeSlot
     Length: float<Hour/Shift>
     RequiredPersonal: (int<Worker/Shift> * string) list
     Strain: float<Strain/Shift>
@@ -52,11 +48,17 @@ type Employee = {
     Wage:float<Euro/Hour>
 }
 
+type TimeSlot = { shifts:ShiftInfo list}
+
+type Day = { timeSlots: TimeSlot list }
+
+type Week = { days:Day list }
+
+type Schedule = { weeks:Week list }
+
 type Problem = {
     workers:Employee list
-    shifts:ShiftInfo list
-    timeSlots:int
-    weeksAmount:int
+    schedule:Schedule
     maxHoursPerWeek:float<Hour>
     options:Options
 }
@@ -68,16 +70,13 @@ let version = "beta-1.0.2 >=> Experimental concurrent shift preview"
 
 let constructProblem (problem:Problem) =
     let workers = problem.workers
-    let shifts = problem.shifts
+    let schedule = problem.schedule
+
     let maxHoursPerWeek = problem.maxHoursPerWeek
 
-    let workWeeks = [1 .. problem.weeksAmount]
 
     let workersWage =
         [for record in workers -> record, record.Wage] |> SMap.ofList
-
-    //! Shift information
-    let workdays = [1..7]
 
 
     // Here are the shifts helpers defined
@@ -94,11 +93,12 @@ let constructProblem (problem:Problem) =
     let shouldWork =
         DecisionBuilder<Shift> "Has to work" {
             for employee in workers do
-                for week in workWeeks do
-                    for day in workdays do
-                        for shift in shifts ->
-                            Boolean
-        } |> SMap4.ofSeq
+                for week in schedule.weeks do
+                    for day in week.days do
+                        for timeslot in day.timeSlots do
+                            for shift in timeslot.shifts ->
+                                Boolean
+        } |> SMap5.ofSeq
         
     //! Constraints
     (*
