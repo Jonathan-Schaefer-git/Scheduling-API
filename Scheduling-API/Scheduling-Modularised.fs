@@ -137,34 +137,34 @@ let constructProblem (problem:Problem) =
         }
 
 
-    // // Ensures sufficient, qualified staffing
-    // let qualifiedConstraints =
-    //     ConstraintBuilder "Ensure qualified personell and enough of workers of in shift" {
-    //         for week in schedule.weeks do
-    //             for day in week.days do
-    //                 for timeSlot in day.timeSlots do
-    //                     for shift in timeSlot.shifts do
-    //                         for (reqWorkers, qualification) in shift.RequiredPersonal ->
-    //                             sum(shouldWork.[Where (fun employee -> employee.Occupation = qualification),week,day,timeSlot,shift]) >== float(reqWorkers) * 1.0<Shift>
-    //     }
+    // Ensures sufficient, qualified staffing
+    let qualifiedConstraints =
+        ConstraintBuilder "Ensure qualified personell and enough of workers of in shift" {
+            for week in schedule.weeks do
+                for day in week.days do
+                    for timeSlot in day.timeSlots do
+                        for shift in timeSlot.shifts do
+                            for (reqWorkers, qualification) in shift.RequiredPersonal ->
+                                sum(shouldWork.[Where (fun employee -> employee.Occupation = qualification),week,day,timeSlot,shift]) >== float(reqWorkers) * 1.0<Shift>
+        }
 
-    // // Maximum worktime per week
-    // let maxHoursConstraints =
-    //     ConstraintBuilder "Maximum Constraint" {
-    //         for employee in workers do
-    //             for week in schedule.weeks ->
-    //                 sum (shouldWork.[employee,week,All,All,All] .* shiftLength.[week,All,All,All]) <== maxHoursPerWeek
-    //     }
+    // Maximum worktime per week
+    let maxHoursConstraints =
+        ConstraintBuilder "Maximum Constraint" {
+            for employee in workers do
+                for week in schedule.weeks ->
+                    sum (shouldWork.[employee,week,All,All,All] .* shiftLength.[week,All,All,All]) <== maxHoursPerWeek
+        }
     
-    // // No double shift on one day can be worked
-    // let noDoubleShiftConstraint =
-    //     ConstraintBuilder "No Double Shift Constraint" {
-    //         for employee in workers do
-    //             for week in schedule.weeks do
-    //                 for day in week.days do
-    //                     for timeSlot in day.timeSlots ->
-    //                     sum(shouldWork.[employee,week,day,timeSlot,All]) <== 1.0<Shift>
-    //     }
+    // No double shift on one day can be worked
+    let noDoubleShiftConstraint =
+        ConstraintBuilder "No Double Shift Constraint" {
+            for employee in workers do
+                for week in schedule.weeks do
+                    for day in week.days do
+                        for timeSlot in day.timeSlots ->
+                        sum(shouldWork.[employee,week,day,timeSlot,All]) <== 1.0<Shift>
+        }
 
     //! Objectives
     let minimizeStrain =
@@ -235,12 +235,12 @@ let constructProblem (problem:Problem) =
                 Model.create minimizeCosts
                 |> Model.addObjective minimizeStrain
 
-        // if options.ensureQualifiedPersonellConstraint then
-        //     model <- Model.addConstraints qualifiedConstraints model
-        // if options.noDoubleShiftConstraint then
-        //     model <- Model.addConstraints noDoubleShiftConstraint model
-        // if options.capMaximumWorkingHoursConstraint then
-        //     model <- Model.addConstraints maxHoursConstraints model
+        if options.ensureQualifiedPersonellConstraint then
+            model <- Model.addConstraints qualifiedConstraints model
+        if options.noDoubleShiftConstraint then
+            model <- Model.addConstraints noDoubleShiftConstraint model
+        if options.capMaximumWorkingHoursConstraint then
+            model <- Model.addConstraints maxHoursConstraints model
         
         model <- Model.addConstraints testConstraints model
 
