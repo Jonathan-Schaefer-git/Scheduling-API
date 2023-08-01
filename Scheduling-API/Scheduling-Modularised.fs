@@ -35,17 +35,19 @@ type Options = {
 
 // Every day has a certain amount of time slots (default: 3) which can each contrain 0, 1 or more shifts which need to be staffed
 
-type ShiftInfo = {
-    Name: string
-    Length: float<Hour/Shift>
-    RequiredPersonal: (int<Worker/Shift> * string) list
-    Strain: float<Strain/Shift>
-}
 
 type Employee = {
     Name:string
     Occupation:string
     Wage:float<Euro/Hour>
+}
+
+
+type ShiftInfo = {
+    Name: string
+    Length: float<Hour/Shift>
+    RequiredPersonal: (int<Worker/Shift> * string) list
+    Strain: float<Strain/Shift>
 }
 
 type TimeSlot = { shifts:ShiftInfo list}
@@ -78,14 +80,14 @@ let constructProblem (problem:Problem) =
     let workersWage =
         [for record in workers -> record, record.Wage] |> SMap.ofList
 
-
-    // Here are the shifts helpers defined
     let shiftLength = 
-        [for shift in shifts -> shift, shift.Length] |> SMap.ofList
-
-
-    let strainOfShifts =
-        [for shift in shifts -> shift, shift.Strain] |> SMap.ofList
+        [
+            for week in schedule.weeks do
+                for day in week.days do
+                    for timeSlot in day.timeSlots do
+                        for shift in timeSlot.shifts ->
+                            week,day,timeSlot,shift,shift.Length
+        ] |> SMap4.ofList
 
 
     // Builds a binary matrix per worker of 3 shifts (as columns) and 7 days (as Rows) for every employee
@@ -115,30 +117,30 @@ let constructProblem (problem:Problem) =
     // Ensures sufficient, qualified staffing
     let qualifiedConstraints =
         ConstraintBuilder "Is qualified and enough workers of in shift" {
-            for week in workWeeks do
-                for day in workdays do
-                    for shift in shifts do
-                        for (reqWorkers, qualification) in shift.RequiredPersonal ->
-                            sum(shouldWork.[Where (fun employee -> employee.Occupation = qualification), week, day, shift]) >== float(reqWorkers) * 1.0<Shift>
-        } |> List.ofSeq
+            for week in schedule.weeks do
+                for day in week.days do
+                    for timeSlot in day.timeSlots do
+                        for shift in timeSlot.shifts do
+                            for (reqWorkers, qualification) in shift.RequiredPersonal ->
+                                sum(shouldWork.[Where (fun employee -> employee.Occupation = qualification),week,day,timeSlot,shift]) >== float(reqWorkers) * 1.0<Shift>
+        }
 
     // Maximum worktime per week
     let maxHoursConstraints =
         ConstraintBuilder "Maximum Constraint" {
-            
             for employee : Employee in workers do
                 for week in workWeeks ->
-                    sum (shouldWork.[employee,week,All,All] .* shiftLength) <== maxHoursPerWeek
-        } |> List.ofSeq
+                    sum (shouldWork.[employee,week,All,All,All] .* shiftLength) <== maxHoursPerWeek
+        }
     
     // No double shift on one day can be worked
     let noDoubleShiftConstraint =
         ConstraintBuilder "No Double Shift Constraint" {
             for employee in workers do
-                for week in workWeeks do
-                    for day in workdays ->
-                        sum(shouldWork.[employee,week,day,All]) <== 1.0<Shift>
-        } |> List.ofSeq
+                for week in schedule.weeks do
+                    for day in week.days ->
+                        sum(shouldWork.[employee,week,day,All,All]) <== 1.0<Shift>
+        }
 
     //! Objectives
     let minimizeStrain =
