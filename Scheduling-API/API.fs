@@ -43,8 +43,8 @@ let apiRoutes =
 
 [<EntryPoint>]
 let main argv =
-
-    ModularisedScheduling.testCase() |> JsonConvert.SerializeObject |> printfn "%s"
+    
+    // ModularisedScheduling.testCase() |> JsonConvert.SerializeObject |> printfn "%s"
 
     ModularisedScheduling.testCase() |> constructProblem |> printfn "%A"
 
