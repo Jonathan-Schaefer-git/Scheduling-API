@@ -13,6 +13,16 @@ open System.Diagnostics
 [<Measure>] type Worker
 [<Measure>] type Shift
 
+
+// Challenge: Create a model that is able to create schedule that minimizes 
+// costs and strain on workers while respecting these constraints:
+(*
+    - No worker may work over 40 hours a week
+    - No worker may work 2 shifts in one day
+    - Each shift requires a specific amount of workers of a certain occupation
+*)
+// As well as minimizes possible code duplications and maximizes extensibility and modularity
+
 type Options = {
     expenseMinimizing:bool
     strainMinimizing:bool
@@ -162,14 +172,13 @@ let constructProblem (problem:Problem) =
         |> List.sum
         |> Objective.create "Minimize Cost Target" Minimize
 
-    //todo Implement a way to minimize shift switches
+
     //note Maybe minimize cross product? As it is a matrix?
 
     let retrieveSolutionValues (result:SolveResult) (stopwatch:Stopwatch) =
         match result with
         | Optimal solution ->
-            let shiftsPerWeek = [for day in schedule.weeks.[0].days do [for timeSlot in day.timeSlots -> timeSlot.shifts.Length] |> List.sum ] |> List.sum
-            {workers=workers.Length; shifts=shiftsPerWeek * schedule.weeks.Length; weeks=schedule.weeks.Length; time=stopwatch.ElapsedMilliseconds; success=true} |> writeProtocol
+            problemToProtocol problem stopwatch true
             let values = Solution.getValues solution shouldWork |> SMap5.ofMap
             [
                 for week=0 to schedule.weeks.Length - 1 do 
@@ -189,8 +198,7 @@ let constructProblem (problem:Problem) =
                 ]
             ]
         | _ -> 
-            let shiftsPerWeek = [for day in schedule.weeks.[0].days do[for timeSlot in day.timeSlots -> timeSlot.shifts.Length] |> List.sum ] |> List.sum
-            {workers=workers.Length; shifts=shiftsPerWeek * schedule.weeks.Length; weeks=schedule.weeks.Length; time=stopwatch.ElapsedMilliseconds; success=true} |> writeProtocol
+            problemToProtocol problem stopwatch false
             [[[[[sprintf "[Error]: Model infeasible -> %A" result]]]]]
 
 
@@ -278,9 +286,7 @@ let testCase() =
                         {
                             timeSlots=
                             [
-                                {shifts=[shifts.[0]]}
-                                {shifts=[shifts.[1]]}
-                                {shifts=[shifts.[2]]}
+
                             ]
                         };
                         {
