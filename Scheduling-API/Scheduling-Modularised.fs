@@ -31,26 +31,32 @@ type Options = {
     capMaximumWorkingHoursConstraint:bool
 }
 
-
 //! Domain Model
-type ShiftInfo = {
-    Name: string
-    RequiredPersonal: (int<Worker/Shift> * string) list
-    Length: float<Hour/Shift>
-    Strain: float<Strain/Shift>
-}
 
-type Day = { shifts: ShiftInfo list }
+// Every day has a certain amount of time slots (default: 3) which can each contrain 0, 1 or more shifts which need to be staffed
 
-type Week = { days:Day list }
-
-type Schedule = { weeks:Week list }
 
 type Employee = {
     Name:string
     Occupation:string
     Wage:float<Euro/Hour>
 }
+
+
+type ShiftInfo = {
+    Name: string
+    Length: float<Hour/Shift>
+    RequiredPersonal: (int<Worker/Shift> * string) list
+    Strain: float<Strain/Shift>
+}
+
+type TimeSlot = { shifts:ShiftInfo list}
+
+type Day = { timeSlots: TimeSlot list }
+
+type Week = { days:Day list }
+
+type Schedule = { weeks:Week list }
 
 type Problem = {
     workers:Employee list
@@ -59,9 +65,8 @@ type Problem = {
     options:Options
 }
 
-
 let problemToProtocol problem (stopwatch:Stopwatch) (success:bool) : unit =
-    let shiftsPerWeek = [for week in problem.schedule.weeks do [for day in week.days do [for shift in day.shifts -> 1] |> List.sum ] |> List.sum ] |> List.sum
+    let shiftsPerWeek = [for week in problem.schedule.weeks do [for day in week.days do [for timeslot in day.timeSlots do [for shift in timeslot.shifts -> 1] |> List.sum ] |> List.sum ] |> List.sum ] |> List.sum
     {workers=problem.workers.Length; shifts=shiftsPerWeek; weeks=problem.schedule.weeks.Length; time=stopwatch.ElapsedMilliseconds; success=success} |> writeProtocol
 
 
@@ -69,6 +74,8 @@ let version = "beta-1.0.2"
 
 
 let constructProblem (problem:Problem) =
+
+    // Helper variables to make the code more readable
     let workers = problem.workers
     let schedule = problem.schedule
     let maxHoursPerWeek = problem.maxHoursPerWeek
@@ -76,15 +83,15 @@ let constructProblem (problem:Problem) =
     let workersWage =
         [for record in workers -> record, record.Wage] |> SMap.ofList
 
-
     // Here are the shifts helpers defined
     let shiftLength = 
         [
             for x=0 to schedule.weeks.Length - 1 do
                 for y=0 to schedule.weeks.[x].days.Length - 1 do
-                    for shift in schedule.weeks.[x].days.[y].shifts ->
-                       (x,y,shift),shift.Length
-        ] |> SMap3.ofList
+                    for z=0 to schedule.weeks.[x].days.[y].timeSlots.Length - 1 do
+                        for shift in schedule.weeks.[x].days.[y].timeSlots.[z].shifts ->
+                            (x,y,z,shift),shift.Length
+        ] |> SMap4.ofList
 
 
 
@@ -92,9 +99,10 @@ let constructProblem (problem:Problem) =
         [
             for x=0 to schedule.weeks.Length - 1 do
                 for y=0 to schedule.weeks.[x].days.Length - 1 do
-                    for shift in schedule.weeks.[x].days.[y].shifts ->
-                       (x,y,shift),shift.Strain
-        ] |> SMap3.ofList
+                    for z=0 to schedule.weeks.[x].days.[y].timeSlots.Length - 1 do
+                        for shift in schedule.weeks.[x].days.[y].timeSlots.[z].shifts ->
+                            (x,y,z,shift),shift.Strain
+        ] |> SMap4.ofList
 
 
     // Builds a binary matrix per worker of 3 shifts (as columns) and 7 days (as Rows) for every employee
@@ -104,9 +112,10 @@ let constructProblem (problem:Problem) =
             for employee in workers do
                 for x=0 to schedule.weeks.Length - 1 do
                     for y=0 to schedule.weeks.[x].days.Length - 1 do
-                        for shift in schedule.weeks.[x].days.[y].shifts ->
-                            Boolean
-        } |> SMap4.ofSeq
+                        for z=0 to schedule.weeks.[x].days.[y].timeSlots.Length - 1 do
+                            for shift in schedule.weeks.[x].days.[y].timeSlots.[z].shifts ->
+                                Boolean
+        } |> SMap5.ofSeq
         
     //! Constraints
     (*
@@ -120,24 +129,34 @@ let constructProblem (problem:Problem) =
         - shouldWork.[employee, day, All] <== 1.0<Shift>
     *)
     
+    // let testConstraints =
+    //     ConstraintBuilder "Testconstraint" {
+    //         for x=0 to schedule.weeks.Length - 1 do
+    //             for y=0 to schedule.weeks.[x].days.Length - 1 do
+    //                 for z=0 to schedule.weeks.[x].days.[y].timeSlots.Length - 1 do
+    //                     for shift in schedule.weeks.[x].days.[y].timeSlots.[z].shifts ->
+    //                         sum(shouldWork.[All,x,y,z,shift]) >== 1.0<Shift>
+    //     }
+
+
     // Ensures sufficient, qualified staffing
     let qualifiedConstraints =
-        ConstraintBuilder "Is qualified and enough workers of in shift" {
+        ConstraintBuilder "Ensure qualified personell and enough of workers of in shift" {
             for x=0 to schedule.weeks.Length - 1 do
                 for y=0 to schedule.weeks.[x].days.Length - 1 do
-                    for shift in schedule.weeks.[x].days.[y].shifts do
-                        for (reqWorkers, qualification) in shift.RequiredPersonal ->
-                            sum(shouldWork.[Where (fun employee -> employee.Occupation = qualification), x, y, shift]) >== float(reqWorkers) * 1.0<Shift>
-        } |> List.ofSeq
+                    for z=0 to schedule.weeks.[x].days.[y].timeSlots.Length - 1 do
+                        for shift in schedule.weeks.[x].days.[y].timeSlots.[z].shifts do
+                            for (reqWorkers, qualification) in shift.RequiredPersonal ->
+                                sum(shouldWork.[Where (fun employee -> employee.Occupation = qualification),x,y,z,shift]) >== float(reqWorkers) * 1.0<Shift>
+        }
 
     // Maximum worktime per week
     let maxHoursConstraints =
         ConstraintBuilder "Maximum Constraint" {
-            for employee : Employee in workers do
-                for x=0 to schedule.weeks.Length - 1 do
-                    for y=0 to schedule.weeks.[x].days.Length - 1 do
-                        yield sum (shouldWork.[employee,x,All,All] .* shiftLength.[x,y,All]) <== maxHoursPerWeek
-        } |> List.ofSeq
+            for employee in workers do
+                for week=0 to schedule.weeks.Length - 1 do
+                    yield sum (shouldWork.[employee,week,All,All,All] .* shiftLength.[week,All,All,All]) <== maxHoursPerWeek
+        }
     
     // No double shift on one day can be worked
     let noDoubleShiftConstraint =
@@ -145,16 +164,14 @@ let constructProblem (problem:Problem) =
             for employee in workers do
                 for x=0 to schedule.weeks.Length - 1 do
                     for y=0 to schedule.weeks.[x].days.Length - 1 do
-                        yield sum(shouldWork.[employee,x,y,All]) <== 1.0<Shift>
-        } |> List.ofSeq
+                        yield sum(shouldWork.[employee,x,y,All,All]) <== 1.0<Shift>
+        }
 
     //! Objectives
     let minimizeStrain =
         [
             for employee in workers do
-                for x=0 to schedule.weeks.Length - 1 do
-                    for y=0 to schedule.weeks.[x].days.Length - 1 do
-                        yield sum (shouldWork.[employee,x,y,All] .* strainOfShifts.[x,y,All])
+                sum (shouldWork.[employee,All,All,All,All] .* strainOfShifts)
         ]
         |> List.sum
         |> Objective.create "Minimize strain on workers" Minimize
@@ -164,8 +181,9 @@ let constructProblem (problem:Problem) =
             for employee in workers do
                 for x=0 to schedule.weeks.Length - 1 do
                     for y=0 to schedule.weeks.[x].days.Length - 1 do
-                        for shift in schedule.weeks.[x].days.[y].shifts ->
-                            shouldWork.[employee,x,y,shift] * shiftLength.[x,y,shift] * workersWage.[employee]
+                        for z=0 to schedule.weeks.[x].days.[y].timeSlots.Length - 1 do
+                            for shift in schedule.weeks.[x].days.[y].timeSlots.[z].shifts ->
+                                shouldWork.[employee,x,y,z,shift] * shiftLength.[x,y,z,shift] * workersWage.[employee]
         ]
         |> List.sum
         |> Objective.create "Minimize Cost Target" Minimize
@@ -173,33 +191,33 @@ let constructProblem (problem:Problem) =
     //todo Implement a way to minimize shift switches
     //note Maybe minimize cross product? As it is a matrix?
 
-    let printDash() =
-        for x in [0..100] do
-            printf "-"
-        printf "\n"
-
     let retrieveSolutionValues (result:SolveResult) (stopwatch:Stopwatch) =
         match result with
         | Optimal solution ->
-            problemToProtocol problem stopwatch true
-            let values = Solution.getValues solution shouldWork |> SMap4.ofMap
+            let shiftsPerWeek = [for day in schedule.weeks.[0].days do [for timeSlot in day.timeSlots -> timeSlot.shifts.Length] |> List.sum ] |> List.sum
+            {workers=workers.Length; shifts=shiftsPerWeek * schedule.weeks.Length; weeks=schedule.weeks.Length; time=stopwatch.ElapsedMilliseconds; success=true} |> writeProtocol
+            let values = Solution.getValues solution shouldWork |> SMap5.ofMap
             [
-                for x = 0 to schedule.weeks.Length - 1 do 
+                for week=0 to schedule.weeks.Length - 1 do 
                 [
-                    for y=0 to schedule.weeks.[x].days.Length - 1 do
+                    for day=0 to schedule.weeks.[week].days.Length - 1 do
                     [
-                        for shift in schedule.weeks.[x].days.[y].shifts do
+                        for timeslot=0 to schedule.weeks.[week].days.[day].timeSlots.Length - 1 do
                         [
-                            let x = values.[All,x,y, shift]
-                            for employee in workers do
-                                if x.[employee] = 1.0<Shift> then yield employee.Name
+                            for shift in schedule.weeks.[week].days.[day].timeSlots.[timeslot].shifts do
+                            [
+                                let x = values.[All,week,day,timeslot,shift]
+                                for employee in workers do
+                                    if x.[employee] = 1.0<Shift> then yield employee.Name
+                            ]
                         ]
                     ]
                 ]
             ]
         | _ -> 
-            problemToProtocol problem stopwatch false
-            [[[[sprintf "[Error]: Model infeasible -> %A" result]]]]
+            let shiftsPerWeek = [for day in schedule.weeks.[0].days do[for timeSlot in day.timeSlots -> timeSlot.shifts.Length] |> List.sum ] |> List.sum
+            {workers=workers.Length; shifts=shiftsPerWeek * schedule.weeks.Length; weeks=schedule.weeks.Length; time=stopwatch.ElapsedMilliseconds; success=true} |> writeProtocol
+            [[[[[sprintf "[Error]: Model infeasible -> %A" result]]]]]
 
 
     // Prepare for stats extraction
@@ -231,52 +249,6 @@ let constructProblem (problem:Problem) =
     retrieveSolutionValues solved stopwatch
 
 
-//let printResult result =
-//        match result with
-//        | Optimal solution ->
-//            printfn "Minimal personal costs:      %.2f" (Objective.evaluate solution minimizeCosts)
-//            printfn "Minimal strain on employees: %.2f" (Objective.evaluate solution minimizeStrain)
-//            let values = Solution.getValues solution shouldWork |> SMap4.ofMap
-//            for employee in workers do
-//                let solutionmatrix =
-//                    [for week in workWeeks do [for day in workdays do [for shift in shifts -> values.[employee,week,day,shift]]]]
-//                printfn "%s" (employee.Name)
-//                for shift in shifts do
-//                    printf "(%s) " (shift.Name)
-//                printf "\n"
-//                for week in workWeeks do
-//                    for day in workdays do 
-//                        printf "%A\n" (solutionmatrix[week - 1][day - 1])
-//            //! Print working plan by Name
-//            let formattedTable =
-//                [
-//                    for week in workWeeks do 
-//                    [
-//                        for day in workdays do
-//                        [
-//                            for shift in shifts do
-//                            [
-//                                let x = values.[All,week,day, shift]
-//                                for employee in workers do
-//                                    if x.[employee] = 1.0<Shift> then yield employee.Name
-//                            ]
-//                        ]
-//                    ]
-//                ]
-//            printfn "Schedule: "
-//            for shift in shifts do
-//                    printf "(%s) " (shift.Name)
-//            printf "\n"
-//            printDash()
-//            for week in workWeeks do
-//                for day in workdays do
-//                    printfn "%d | %A" (day) (formattedTable[week - 1][day - 1])
-//                printDash()
-//        | _ -> printfn $"Unable to solve. Error: %A{result}. This might be because of a problem in the domain model or a conflicting constraint like the 'Max working hours'"
-
-
-
-
 //! Unit test
 let testCase() =
     let shifts = 
@@ -295,25 +267,75 @@ let testCase() =
            {Name="Kiley";    Occupation = "Doctor";  Wage=28.0<Euro/Hour>}
            {Name="Delta";    Occupation = "EMT";     Wage=24.0<Euro/Hour>}
            {Name="Marlee";   Occupation = "Doctor";  Wage=34.0<Euro/Hour>}
-           {Name="Lawrence"; Occupation = "EMT";     Wage=25.0<Euro/Hour>}
            {Name="Tucker";   Occupation = "Nurse";   Wage=18.0<Euro/Hour>}
+           {Name="Lawrence"; Occupation = "EMT";     Wage=25.0<Euro/Hour>}
        ]
 
-    let scheduleexample = 
+    let simplexschedule =
         {
             weeks=
-            [
-                for x = 1 to 4 do
-                {
+                [{
                     days=
                     [
-                        for x = 1 to 7 do
                         {
-                            shifts=[shifts.[0];shifts.[1];shifts.[2]]
-                        }
+                            timeSlots=
+                            [
+                                {shifts=[shifts.[0]]}
+                                {shifts=[shifts.[1]]}
+                                {shifts=[shifts.[2]]}
+                            ]
+                        };
+                        {
+                            timeSlots=
+                            [
+                                {shifts=[shifts.[0]]}
+                                {shifts=[shifts.[1]]}
+                                {shifts=[shifts.[2]]}
+                            ]
+                        };
+                        {
+                            timeSlots=
+                            [
+                                {shifts=[shifts.[0]]}
+                                {shifts=[shifts.[1]]}
+                                {shifts=[shifts.[2]]}
+                            ]
+                        };
+                        {
+                            timeSlots=
+                            [
+                                {shifts=[shifts.[0]]}
+                                {shifts=[shifts.[1]]}
+                                {shifts=[shifts.[2]]}
+                            ]
+                        };
+                        {
+                            timeSlots=
+                            [
+                                {shifts=[shifts.[0]]}
+                                {shifts=[shifts.[1]]}
+                                {shifts=[shifts.[2]]}
+                            ]
+                        };
+                        {
+                            timeSlots=
+                            [
+                                {shifts=[shifts.[0]]}
+                                {shifts=[shifts.[1]]}
+                                {shifts=[shifts.[2]]}
+                            ]
+                        };
+                        {
+                            timeSlots=
+                            [
+                                {shifts=[shifts.[0]]}
+                                {shifts=[shifts.[1]]}
+                                {shifts=[shifts.[2]]}
+                            ]
+                        };
+
                     ]
-                }
-            ]
+                }]
         }
 
-    {workers=workers;schedule=scheduleexample;maxHoursPerWeek=50.0<Hour>;options={expenseMinimizing=true;strainMinimizing=true;capMaximumWorkingHoursConstraint=true;ensureQualifiedPersonellConstraint=true;noDoubleShiftConstraint=true}}
+    {workers=workers;schedule=simplexschedule;maxHoursPerWeek=50.0<Hour>;options={expenseMinimizing=true;strainMinimizing=true;capMaximumWorkingHoursConstraint=true;ensureQualifiedPersonellConstraint=true;noDoubleShiftConstraint=true}}
