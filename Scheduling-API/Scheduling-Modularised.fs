@@ -60,8 +60,9 @@ type Problem = {
 }
 
 
-let problemToProtocol problem : unit =
-    {workers=problem.workers.Length; shifts=shifts.Length * 7 * problem.weeksAmount; weeks=problem.weeksAmount; time=stopwatch.ElapsedMilliseconds; success=false} |> writeProtocol
+let problemToProtocol problem (stopwatch:Stopwatch) (success:bool) : unit =
+    let shiftsPerWeek = [for week in problem.schedule.weeks do [for day in week.days do [for shift in day.shifts -> 1] |> List.sum ] |> List.sum ] |> List.sum
+    {workers=problem.workers.Length; shifts=shiftsPerWeek; weeks=problem.schedule.weeks.Length; time=stopwatch.ElapsedMilliseconds; success=success} |> writeProtocol
 
 
 let version = "beta-1.0.2"
@@ -134,8 +135,9 @@ let constructProblem (problem:Problem) =
         ConstraintBuilder "Maximum Constraint" {
             
             for employee : Employee in workers do
-                for week in schedule.weeks ->
-                    sum (shouldWork.[employee,week,All,All] .* shiftLength) <== maxHoursPerWeek
+                for week in schedule.weeks do
+                    for day in week.days ->
+                    sum (shouldWork.[employee,week,All,All] .* shiftLength.[week,day,All]) <== maxHoursPerWeek
         } |> List.ofSeq
     
     // No double shift on one day can be worked
@@ -154,7 +156,7 @@ let constructProblem (problem:Problem) =
                 for week in schedule.weeks do
                     for day in week.days do
                         for shift in day.shifts ->
-                            sum (shouldWork.[employee,week,day,All] .* strainOfShifts)
+                            sum (shouldWork.[employee,week,day,All] .* strainOfShifts.[week,day,All])
         ]
         |> List.sum
         |> Objective.create "Minimize strain on workers" Minimize
@@ -181,7 +183,7 @@ let constructProblem (problem:Problem) =
     let retrieveSolutionValues (result:SolveResult) (stopwatch:Stopwatch) =
         match result with
         | Optimal solution ->
-            {workers=workers.Length; shifts=shifts.Length * 7 * problem.weeksAmount; weeks=problem.weeksAmount; time=stopwatch.ElapsedMilliseconds; success=true} |> writeProtocol
+            problemToProtocol problem stopwatch true
             let values = Solution.getValues solution shouldWork |> SMap4.ofMap
             [
                 for week in schedule.weeks do 
@@ -198,7 +200,7 @@ let constructProblem (problem:Problem) =
                 ]
             ]
         | _ -> 
-            problem |> problemToProtocol
+            problemToProtocol problem stopwatch false
             [[[[sprintf "[Error]: Model infeasible -> %A" result]]]]
 
 
@@ -208,7 +210,6 @@ let constructProblem (problem:Problem) =
     let solved = 
         let options = problem.options
 
-        
 
         let mutable model = 
             match (options.expenseMinimizing, options.strainMinimizing) with
