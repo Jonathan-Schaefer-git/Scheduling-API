@@ -1,5 +1,6 @@
 module Protocol
 open FSharp.Data
+open Newtonsoft.Json
 open FSharp.Data.CsvExtensions
 open System.IO
 
