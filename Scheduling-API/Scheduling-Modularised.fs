@@ -40,6 +40,12 @@ type ShiftInfo = {
     Strain: float<Strain/Shift>
 }
 
+type Day = { shifts: ShiftInfo list }
+
+type Week = { days:Day list }
+
+type Schedule = { weeks:Week list }
+
 type Employee = {
     Name:string
     Occupation:string
@@ -56,7 +62,7 @@ type Problem = {
 
 
 
-let version = "beta-1.0.1"
+let version = "beta-1.0.2"
 
 
 let constructProblem (problem:Problem) =
@@ -285,5 +291,16 @@ let testCase() =
            {Name="Lawrence"; Occupation = "EMT";     Wage=25.0<Euro/Hour>}
            {Name="Tucker";   Occupation = "Nurse";   Wage=18.0<Euro/Hour>}
        ]
+
+    let scheduleexample = 
+        {
+            weeks=
+                [
+                    for x = 1 to 7 do
+                        {
+                            shifts=[shifts.[0];shifts.[1];shifts.[2]]
+                        }
+                ]
+        }
 
     {workers=workers;shifts=shifts;weeksAmount=4;maxHoursPerWeek=50.0<Hour>;options={expenseMinimizing=true;strainMinimizing=true;capMaximumWorkingHoursConstraint=true;ensureQualifiedPersonellConstraint=true;noDoubleShiftConstraint=true}}
