@@ -54,12 +54,14 @@ type Employee = {
 
 type Problem = {
     workers:Employee list
-    shifts:ShiftInfo list
-    weeksAmount:int
+    schedule:Schedule
     maxHoursPerWeek:float<Hour>
     options:Options
 }
 
+
+let problemToProtocol problem : unit =
+    {workers=problem.workers.Length; shifts=shifts.Length * 7 * problem.weeksAmount; weeks=problem.weeksAmount; time=stopwatch.ElapsedMilliseconds; success=false} |> writeProtocol
 
 
 let version = "beta-1.0.2"
@@ -67,25 +69,31 @@ let version = "beta-1.0.2"
 
 let constructProblem (problem:Problem) =
     let workers = problem.workers
-    let shifts = problem.shifts
+    let schedule = problem.schedule
     let maxHoursPerWeek = problem.maxHoursPerWeek
-
-    let workWeeks = [1 .. problem.weeksAmount]
 
     let workersWage =
         [for record in workers -> record, record.Wage] |> SMap.ofList
 
-    //! Shift information
-    let workdays = [1..7]
-
 
     // Here are the shifts helpers defined
     let shiftLength = 
-        [for shift in shifts -> shift, shift.Length] |> SMap.ofList
+        [
+            for week in schedule.weeks do
+                for day in week.days do
+                    for shift in day.shifts ->
+                       (week,day,shift),shift.Length
+        ] |> SMap3.ofList
 
 
-    let strainOfShifts =
-        [for shift in shifts -> shift, shift.Strain] |> SMap.ofList
+
+    let strainOfShifts = 
+        [
+            for week in schedule.weeks do
+                for day in week.days do
+                    for shift in day.shifts ->
+                       (week,day,shift),shift.Strain
+        ] |> SMap3.ofList
 
 
     // Builds a binary matrix per worker of 3 shifts (as columns) and 7 days (as Rows) for every employee
@@ -93,9 +101,9 @@ let constructProblem (problem:Problem) =
     let shouldWork =
         DecisionBuilder<Shift> "Has to work" {
             for employee in workers do
-                for week in workWeeks do
-                    for day in workdays do
-                        for shift in shifts ->
+                for week in schedule.weeks do
+                    for day in week.days do
+                        for shift in day.shifts ->
                             Boolean
         } |> SMap4.ofSeq
         
@@ -114,9 +122,9 @@ let constructProblem (problem:Problem) =
     // Ensures sufficient, qualified staffing
     let qualifiedConstraints =
         ConstraintBuilder "Is qualified and enough workers of in shift" {
-            for week in workWeeks do
-                for day in workdays do
-                    for shift in shifts do
+            for week in schedule.weeks do
+                for day in week.days do
+                    for shift in day.shifts do
                         for (reqWorkers, qualification) in shift.RequiredPersonal ->
                             sum(shouldWork.[Where (fun employee -> employee.Occupation = qualification), week, day, shift]) >== float(reqWorkers) * 1.0<Shift>
         } |> List.ofSeq
@@ -126,7 +134,7 @@ let constructProblem (problem:Problem) =
         ConstraintBuilder "Maximum Constraint" {
             
             for employee : Employee in workers do
-                for week in workWeeks ->
+                for week in schedule.weeks ->
                     sum (shouldWork.[employee,week,All,All] .* shiftLength) <== maxHoursPerWeek
         } |> List.ofSeq
     
@@ -134,8 +142,8 @@ let constructProblem (problem:Problem) =
     let noDoubleShiftConstraint =
         ConstraintBuilder "No Double Shift Constraint" {
             for employee in workers do
-                for week in workWeeks do
-                    for day in workdays ->
+                for week in schedule.weeks do
+                    for day in week.days ->
                         sum(shouldWork.[employee,week,day,All]) <== 1.0<Shift>
         } |> List.ofSeq
 
@@ -143,9 +151,9 @@ let constructProblem (problem:Problem) =
     let minimizeStrain =
         [
             for employee in workers do
-                for week in workWeeks do
-                    for day in workdays do
-                        for shift in shifts ->
+                for week in schedule.weeks do
+                    for day in week.days do
+                        for shift in day.shifts ->
                             sum (shouldWork.[employee,week,day,All] .* strainOfShifts)
         ]
         |> List.sum
@@ -154,10 +162,10 @@ let constructProblem (problem:Problem) =
     let minimizeCosts =
         [
             for employee in workers do
-                for week in workWeeks do
-                    for day in workdays do
-                        for shift in shifts ->
-                            shouldWork.[employee,week,day,shift] * shiftLength.[shift] * workersWage.[employee]
+                for week in schedule.weeks do
+                    for day in week.days do
+                        for shift in day.shifts ->
+                            shouldWork.[employee,week,day,shift] * shiftLength.[week,day,shift] * workersWage.[employee]
         ]
         |> List.sum
         |> Objective.create "Minimize Cost Target" Minimize
@@ -176,11 +184,11 @@ let constructProblem (problem:Problem) =
             {workers=workers.Length; shifts=shifts.Length * 7 * problem.weeksAmount; weeks=problem.weeksAmount; time=stopwatch.ElapsedMilliseconds; success=true} |> writeProtocol
             let values = Solution.getValues solution shouldWork |> SMap4.ofMap
             [
-                for week in workWeeks do 
+                for week in schedule.weeks do 
                 [
-                    for day in workdays do
+                    for day in week.days do
                     [
-                        for shift in shifts do
+                        for shift in day.shifts do
                         [
                             let x = values.[All,week,day, shift]
                             for employee in workers do
@@ -190,7 +198,7 @@ let constructProblem (problem:Problem) =
                 ]
             ]
         | _ -> 
-            {workers=workers.Length; shifts=shifts.Length * 7 * problem.weeksAmount; weeks=problem.weeksAmount; time=stopwatch.ElapsedMilliseconds; success=false} |> writeProtocol
+            problem |> problemToProtocol
             [[[[sprintf "[Error]: Model infeasible -> %A" result]]]]
 
 
@@ -295,12 +303,17 @@ let testCase() =
     let scheduleexample = 
         {
             weeks=
-                [
-                    for x = 1 to 7 do
+            [
+                {
+                    days=
+                    [
+                        for x = 1 to 7 do
                         {
                             shifts=[shifts.[0];shifts.[1];shifts.[2]]
                         }
-                ]
+                    ]
+                }
+            ]
         }
 
-    {workers=workers;shifts=shifts;weeksAmount=4;maxHoursPerWeek=50.0<Hour>;options={expenseMinimizing=true;strainMinimizing=true;capMaximumWorkingHoursConstraint=true;ensureQualifiedPersonellConstraint=true;noDoubleShiftConstraint=true}}
+    {workers=workers;schedule=scheduleexample;maxHoursPerWeek=50.0<Hour>;options={expenseMinimizing=true;strainMinimizing=true;capMaximumWorkingHoursConstraint=true;ensureQualifiedPersonellConstraint=true;noDoubleShiftConstraint=true}}
