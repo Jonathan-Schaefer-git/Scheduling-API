@@ -132,14 +132,14 @@ let constructProblem (problem:Problem) =
         - shouldWork.[employee, day, All] <== 1.0<Shift>
     *)
     
-    let testConstraints =
-        ConstraintBuilder "Testconstraint" {
-            for x=0 to schedule.weeks.Length - 1 do
-                for y=0 to schedule.weeks.[x].days.Length - 1 do
-                    for z=0 to schedule.weeks.[x].days.[y].timeSlots.Length - 1 do
-                        for shift in schedule.weeks.[x].days.[y].timeSlots.[z].shifts ->
-                            sum(shouldWork.[All,x,y,z,shift]) >== 1.0<Shift>
-        }
+    // let testConstraints =
+    //     ConstraintBuilder "Testconstraint" {
+    //         for x=0 to schedule.weeks.Length - 1 do
+    //             for y=0 to schedule.weeks.[x].days.Length - 1 do
+    //                 for z=0 to schedule.weeks.[x].days.[y].timeSlots.Length - 1 do
+    //                     for shift in schedule.weeks.[x].days.[y].timeSlots.[z].shifts ->
+    //                         sum(shouldWork.[All,x,y,z,shift]) >== 1.0<Shift>
+    //     }
 
 
     // Ensures sufficient, qualified staffing
@@ -245,60 +245,12 @@ let constructProblem (problem:Problem) =
             model <- Model.addConstraints noDoubleShiftConstraint model
         if options.capMaximumWorkingHoursConstraint then
             model <- Model.addConstraints maxHoursConstraints model
-        
-        model <- Model.addConstraints testConstraints model
 
         model
         |> Solver.solve Settings.basic
         
     stopwatch.Stop()
     retrieveSolutionValues solved stopwatch
-
-
-//let printResult result =
-//        match result with
-//        | Optimal solution ->
-//            printfn "Minimal personal costs:      %.2f" (Objective.evaluate solution minimizeCosts)
-//            printfn "Minimal strain on employees: %.2f" (Objective.evaluate solution minimizeStrain)
-//            let values = Solution.getValues solution shouldWork |> SMap4.ofMap
-//            for employee in workers do
-//                let solutionmatrix =
-//                    [for week in workWeeks do [for day in workdays do [for shift in shifts -> values.[employee,week,day,shift]]]]
-//                printfn "%s" (employee.Name)
-//                for shift in shifts do
-//                    printf "(%s) " (shift.Name)
-//                printf "\n"
-//                for week in workWeeks do
-//                    for day in workdays do 
-//                        printf "%A\n" (solutionmatrix[week - 1][day - 1])
-//            //! Print working plan by Name
-//            let formattedTable =
-//                [
-//                    for week in workWeeks do 
-//                    [
-//                        for day in workdays do
-//                        [
-//                            for shift in shifts do
-//                            [
-//                                let x = values.[All,week,day, shift]
-//                                for employee in workers do
-//                                    if x.[employee] = 1.0<Shift> then yield employee.Name
-//                            ]
-//                        ]
-//                    ]
-//                ]
-//            printfn "Schedule: "
-//            for shift in shifts do
-//                    printf "(%s) " (shift.Name)
-//            printf "\n"
-//            printDash()
-//            for week in workWeeks do
-//                for day in workdays do
-//                    printfn "%d | %A" (day) (formattedTable[week - 1][day - 1])
-//                printDash()
-//        | _ -> printfn $"Unable to solve. Error: %A{result}. This might be because of a problem in the domain model or a conflicting constraint like the 'Max working hours'"
-
-
 
 
 //! Unit test
