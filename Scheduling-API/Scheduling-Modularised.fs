@@ -13,16 +13,6 @@ open System.Diagnostics
 [<Measure>] type Worker
 [<Measure>] type Shift
 
-
-// Challenge: Create a model that is able to create schedule that minimizes 
-// costs and strain on workers while respecting these constraints:
-(*
-    - No worker may work over 40 hours a week
-    - No worker may work 2 shifts in one day
-    - Each shift requires a specific amount of workers of a certain occupation
-*)
-// As well as minimizes possible code duplications and maximizes extensibility and modularity
-
 type Options = {
     expenseMinimizing:bool
     strainMinimizing:bool
@@ -70,8 +60,12 @@ let problemToProtocol problem (stopwatch:Stopwatch) (success:bool) : unit =
     {workers=problem.workers.Length; shifts=shiftsPerWeek; weeks=problem.schedule.weeks.Length; time=stopwatch.ElapsedMilliseconds; success=success} |> writeProtocol
 
 
-let version = "beta-1.0.2"
-
+let version = "beta-1.0.3"
+let features = 
+    [
+        "Dynamic schedule supported"
+        "Supports concurrent shifts per time slot"
+    ]
 
 let constructProblem (problem:Problem) =
 
@@ -118,26 +112,6 @@ let constructProblem (problem:Problem) =
         } |> SMap5.ofSeq
         
     //! Constraints
-    (*
-        We need more or an equal amount of workers of the matching profession to be working per shift requirements:
-        - shouldWork.[Where(employee = reqProfession), day, shift] >== Count<Worker/Shift>
-        
-        Each worker can only work a certain amount of hours
-        - shouldWork.[employee, All, All] <== x<Hour>
-    
-        No worker can enter 2 shifts per day
-        - shouldWork.[employee, day, All] <== 1.0<Shift>
-    *)
-    
-    // let testConstraints =
-    //     ConstraintBuilder "Testconstraint" {
-    //         for x=0 to schedule.weeks.Length - 1 do
-    //             for y=0 to schedule.weeks.[x].days.Length - 1 do
-    //                 for z=0 to schedule.weeks.[x].days.[y].timeSlots.Length - 1 do
-    //                     for shift in schedule.weeks.[x].days.[y].timeSlots.[z].shifts ->
-    //                         sum(shouldWork.[All,x,y,z,shift]) >== 1.0<Shift>
-    //     }
-
 
     // Ensures sufficient, qualified staffing
     let qualifiedConstraints =
