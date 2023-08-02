@@ -65,6 +65,10 @@ type Problem = {
     options:Options
 }
 
+let problemToProtocol problem (stopwatch:Stopwatch) (success:bool) : unit =
+    let shiftsPerWeek = [for week in problem.schedule.weeks do [for day in week.days do [for timeslot in day.timeSlots do [for shift in timeslot.shifts -> 1] |> List.sum ] |> List.sum ] |> List.sum ] |> List.sum
+    {workers=problem.workers.Length; shifts=shiftsPerWeek; weeks=problem.schedule.weeks.Length; time=stopwatch.ElapsedMilliseconds; success=success} |> writeProtocol
+
 
 
 let version = "beta-1.0.3 >=> Experimental Feature: Concurrent shift and dynamic Timeslots "
