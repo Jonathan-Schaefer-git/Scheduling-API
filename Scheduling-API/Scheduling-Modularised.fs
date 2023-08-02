@@ -86,24 +86,25 @@ let constructProblem (problem:Problem) =
     let workersWage =
         [for record in workers -> record, record.Wage] |> SMap.ofList
 
+    // Here are the shifts helpers defined
     let shiftLength = 
         [
-            for week in schedule.weeks do
-                for day in week.days do
-                    for timeSlot in day.timeSlots do
-                        for shift in timeSlot.shifts ->
-                           (week,day,timeSlot,shift),shift.Length
+            for x=0 to schedule.weeks.Length - 1 do
+                for y=0 to schedule.weeks.[x].days.Length - 1 do
+                    for z=0 to schedule.weeks.[x].days.[y].timeSlots.Length - 1 do
+                        for shift in schedule.weeks.[x].days.[y].timeSlots.[z].shifts ->
+                            (x,y,z,shift),shift.Length
         ] |> SMap4.ofList
 
 
 
     let strainOfShifts = 
         [
-            for week in schedule.weeks do
-                for day in week.days do
-                    for timeSlot in day.timeSlots do
-                        for shift in timeSlot.shifts ->
-                           (week,day,timeSlot,shift),shift.Strain
+            for x=0 to schedule.weeks.Length - 1 do
+                for y=0 to schedule.weeks.[x].days.Length - 1 do
+                    for z=0 to schedule.weeks.[x].days.[y].timeSlots.Length - 1 do
+                        for shift in schedule.weeks.[x].days.[y].timeSlots.[z].shifts ->
+                            (x,y,z,shift),shift.Strain
         ] |> SMap4.ofList
 
 
@@ -112,10 +113,10 @@ let constructProblem (problem:Problem) =
     let shouldWork =
         DecisionBuilder<Shift> "Has to work" {
             for employee in workers do
-                for week in schedule.weeks do
-                    for day in week.days do
-                        for timeSlot in day.timeSlots do
-                            for shift in timeSlot.shifts ->
+                for x=0 to schedule.weeks.Length - 1 do
+                    for y=0 to schedule.weeks.[x].days.Length - 1 do
+                        for z=0 to schedule.weeks.[x].days.[y].timeSlots.Length - 1 do
+                            for shift in schedule.weeks.[x].days.[y].timeSlots.[z].shifts ->
                                 Boolean
         } |> SMap5.ofSeq
         
@@ -133,41 +134,40 @@ let constructProblem (problem:Problem) =
     
     let testConstraints =
         ConstraintBuilder "Testconstraint" {
-            for week in schedule.weeks do
-                for day in week.days do
-                    for timeSlot in day.timeSlots do
-                        for shift in timeSlot.shifts ->
-                            sum(shouldWork.[All,week,day,timeSlot,shift]) >== 1.0<Shift>
+            for x=0 to schedule.weeks.Length - 1 do
+                for y=0 to schedule.weeks.[x].days.Length - 1 do
+                    for z=0 to schedule.weeks.[x].days.[y].timeSlots.Length - 1 do
+                        for shift in schedule.weeks.[x].days.[y].timeSlots.[z].shifts ->
+                            sum(shouldWork.[All,x,y,z,shift]) >== 1.0<Shift>
         }
 
 
     // Ensures sufficient, qualified staffing
     let qualifiedConstraints =
         ConstraintBuilder "Ensure qualified personell and enough of workers of in shift" {
-            for week in schedule.weeks do
-                for day in week.days do
-                    for timeSlot in day.timeSlots do
-                        for shift in timeSlot.shifts do
+            for x=0 to schedule.weeks.Length - 1 do
+                for y=0 to schedule.weeks.[x].days.Length - 1 do
+                    for z=0 to schedule.weeks.[x].days.[y].timeSlots.Length - 1 do
+                        for shift in schedule.weeks.[x].days.[y].timeSlots.[z].shifts do
                             for (reqWorkers, qualification) in shift.RequiredPersonal ->
-                                sum(shouldWork.[Where (fun employee -> employee.Occupation = qualification),week,day,timeSlot,shift]) >== float(reqWorkers) * 1.0<Shift>
+                                sum(shouldWork.[Where (fun employee -> employee.Occupation = qualification),x,y,z,shift]) >== float(reqWorkers) * 1.0<Shift>
         }
 
     // Maximum worktime per week
     let maxHoursConstraints =
         ConstraintBuilder "Maximum Constraint" {
             for employee in workers do
-                for week in schedule.weeks ->
-                    sum (shouldWork.[employee,week,All,All,All] .* shiftLength.[week,All,All,All]) <== maxHoursPerWeek
+                for week=0 to schedule.weeks.Length - 1 do
+                    yield sum (shouldWork.[employee,week,All,All,All] .* shiftLength.[week,All,All,All]) <== maxHoursPerWeek
         }
     
     // No double shift on one day can be worked
     let noDoubleShiftConstraint =
         ConstraintBuilder "No Double Shift Constraint" {
             for employee in workers do
-                for week in schedule.weeks do
-                    for day in week.days do
-                        for timeSlot in day.timeSlots ->
-                        sum(shouldWork.[employee,week,day,timeSlot,All]) <== 1.0<Shift>
+                for x=0 to schedule.weeks.Length - 1 do
+                    for y=0 to schedule.weeks.[x].days.Length - 1 do
+                        yield sum(shouldWork.[employee,x,y,All,All]) <== 1.0<Shift>
         }
 
     //! Objectives
@@ -182,11 +182,11 @@ let constructProblem (problem:Problem) =
     let minimizeCosts =
         [
             for employee in workers do
-                for week in schedule.weeks do
-                    for day in week.days do
-                        for timeSlot in day.timeSlots do
-                            for shift in timeSlot.shifts ->
-                                shouldWork[employee,week,day,timeSlot,shift] * shiftLength[week,day,timeSlot,shift] * workersWage.[employee]
+                for x=0 to schedule.weeks.Length - 1 do
+                    for y=0 to schedule.weeks.[x].days.Length - 1 do
+                        for z=0 to schedule.weeks.[x].days.[y].timeSlots.Length - 1 do
+                            for shift in schedule.weeks.[x].days.[y].timeSlots.[z].shifts ->
+                                shouldWork.[employee,x,y,z,shift] * shiftLength.[x,y,z,shift] * workersWage.[employee]
         ]
         |> List.sum
         |> Objective.create "Minimize Cost Target" Minimize
@@ -201,15 +201,15 @@ let constructProblem (problem:Problem) =
             {workers=workers.Length; shifts=shiftsPerWeek * schedule.weeks.Length; weeks=schedule.weeks.Length; time=stopwatch.ElapsedMilliseconds; success=true} |> writeProtocol
             let values = Solution.getValues solution shouldWork |> SMap5.ofMap
             [
-                for week in schedule.weeks do 
+                for week=0 to schedule.weeks.Length - 1 do 
                 [
-                    for day in week.days do
+                    for day=0 to schedule.weeks.[week].days.Length - 1 do
                     [
-                        for timeSlot in day.timeSlots do
+                        for timeslot=0 to schedule.weeks.[week].days.[day].timeSlots.Length - 1 do
                         [
-                            for shift in timeSlot.shifts do
+                            for shift in schedule.weeks.[week].days.[day].timeSlots.[timeslot].shifts do
                             [
-                                let x = values.[All,week,day,timeSlot,shift]
+                                let x = values.[All,week,day,timeslot,shift]
                                 for employee in workers do
                                     if x.[employee] = 1.0<Shift> then yield employee.Name
                             ]
