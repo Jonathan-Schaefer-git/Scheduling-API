@@ -286,6 +286,9 @@ let testCase() =
                         {
                             timeSlots=
                             [
+                                {shifts=[shifts.[0]]}
+                                {shifts=[shifts.[1]]}
+                                {shifts=[shifts.[2]]}
 
                             ]
                         };
@@ -318,4 +321,16 @@ let testCase() =
                 }]
         }
 
-    {workers=workers;schedule=simplexschedule;maxHoursPerWeek=50.0<Hour>;options={expenseMinimizing=true;strainMinimizing=true;capMaximumWorkingHoursConstraint=true;ensureQualifiedPersonellConstraint=true;noDoubleShiftConstraint=true}}
+    {
+        workers=workers;
+        schedule=simplexschedule;
+        maxHoursPerWeek=50.0<Hour>;
+        options=
+            {
+                expenseMinimizing=true;
+                strainMinimizing=true;
+                capMaximumWorkingHoursConstraint=true;
+                ensureQualifiedPersonellConstraint=true;
+                noDoubleShiftConstraint=true
+            }
+    }
