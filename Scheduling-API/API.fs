@@ -14,6 +14,7 @@ open Suave.Authentication
 open Newtonsoft.Json.Converters
 
 
+
 let jsonToProblem json =
     try
          json 
@@ -28,14 +29,15 @@ let apiRoutes =
     choose [
         GET >=> choose [
             path "/api/version" >=> OK (sprintf "%s" version)
+            path "/api/features" >=> OK (sprintf "%A" features)
         ]
         POST >=> choose [
             path "/api/solve" >=> 
                 request (fun req -> 
                         match req.form.[0] |> fst |> jsonToProblem with
                         | Some problem -> 
-                            OK (sprintf "%A" (problem |> constructProblem))
-                        | None -> BAD_REQUEST "The JSON submitted was found to be invalid. Try JSON akin to the example"
+                            OK (sprintf "%s" (problem |> constructProblem |> JsonConvert.SerializeObject))
+                        | None -> BAD_REQUEST "The JSON submitted was found to be invalid"
                     )
         ]
         NOT_FOUND "No appropriate handler found. Refer to the source code for the appropriate handlers"

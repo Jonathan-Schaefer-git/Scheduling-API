@@ -65,6 +65,12 @@ type Problem = {
     options:Options
 }
 
+
+type Solution = {
+    Status:bool
+    Result:string list list list list list
+}
+
 let problemToProtocol problem (stopwatch:Stopwatch) (success:bool) : unit =
     let shiftsPerWeek = [for week in problem.schedule.weeks do [for day in week.days do [for timeslot in day.timeSlots do [for shift in timeslot.shifts -> 1] |> List.sum ] |> List.sum ] |> List.sum ] |> List.sum
     {workers=problem.workers.Length; shifts=shiftsPerWeek; weeks=problem.schedule.weeks.Length; time=stopwatch.ElapsedMilliseconds; success=success} |> writeProtocol
@@ -180,26 +186,28 @@ let constructProblem (problem:Problem) =
         | Optimal solution ->
             problemToProtocol problem stopwatch true
             let values = Solution.getValues solution shouldWork |> SMap5.ofMap
-            [
-                for week=0 to schedule.weeks.Length - 1 do 
+            let resultMatrix =
                 [
-                    for day=0 to schedule.weeks.[week].days.Length - 1 do
+                    for week=0 to schedule.weeks.Length - 1 do 
                     [
-                        for timeslot=0 to schedule.weeks.[week].days.[day].timeSlots.Length - 1 do
+                        for day=0 to schedule.weeks.[week].days.Length - 1 do
                         [
-                            for shift in schedule.weeks.[week].days.[day].timeSlots.[timeslot].shifts do
+                            for timeslot=0 to schedule.weeks.[week].days.[day].timeSlots.Length - 1 do
                             [
-                                let x = values.[All,week,day,timeslot,shift]
-                                for employee in workers do
-                                    if x.[employee] = 1.0<Shift> then yield employee.Name
+                                for shift in schedule.weeks.[week].days.[day].timeSlots.[timeslot].shifts do
+                                [
+                                    let x = values.[All,week,day,timeslot,shift]
+                                    for employee in workers do
+                                        if x.[employee] = 1.0<Shift> then yield employee.Name
+                                ]
                             ]
                         ]
                     ]
                 ]
-            ]
+            {Status=true; Result=resultMatrix}
         | _ -> 
             problemToProtocol problem stopwatch false
-            [[[[[sprintf "[Error]: Model infeasible -> %A" result]]]]]
+            {Status=false; Result=[[[[[sprintf "[Error]: Model infeasible -> %A" result]]]]]}
 
 
     // Prepare for stats extraction
