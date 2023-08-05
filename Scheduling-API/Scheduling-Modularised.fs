@@ -38,7 +38,7 @@ type Options = {
 
 type Employee = {
     Name:string
-    Occupation:string
+    Occupation:string list
     Wage:float<Euro/Hour>
 }
 
@@ -46,7 +46,7 @@ type Employee = {
 type ShiftInfo = {
     Name: string
     Length: float<Hour/Shift>
-    RequiredPersonal: (int<Worker/Shift> * string) list
+    RequiredPersonal: (int<Worker/Shift> * string list) list
     Strain: float<Strain/Shift>
 }
 
@@ -76,11 +76,12 @@ let problemToProtocol problem (stopwatch:Stopwatch) (success:bool) : unit =
     {workers=problem.workers.Length; shifts=shiftsPerWeek; weeks=problem.schedule.weeks.Length; time=stopwatch.ElapsedMilliseconds; success=success} |> writeProtocol
 
 
-let version = "beta-1.0.3"
+let version = "beta-1.0.4"
 let features = 
     [
         "Dynamic schedule supported"
         "Supports concurrent shifts per time slot"
+        "Mixed qualifications enabled for workers and shifts requirements"
     ]
 
 let constructProblem (problem:Problem) =
@@ -243,22 +244,22 @@ let constructProblem (problem:Problem) =
 let testCase() =
     let shifts = 
        [    
-           {Name="Morning Shift"; RequiredPersonal=[(1<Worker/Shift>, "EMT"); (1<Worker/Shift>,"Doctor")];                             Length=8.0<Hour/Shift>;    Strain=1.2<Strain/Shift>}
-           {Name="Late Shift";    RequiredPersonal=[(1<Worker/Shift>, "EMT"); (1<Worker/Shift>,"Doctor"); (1<Worker/Shift>, "Nurse")]; Length=8.0<Hour/Shift>;    Strain=1.0<Strain/Shift>}
-           {Name="Night Shift";   RequiredPersonal=[(1<Worker/Shift>, "Doctor")];                                                      Length=8.0<Hour/Shift>;    Strain=1.8<Strain/Shift>}
+           {Name="Morning Shift"; RequiredPersonal=[(1<Worker/Shift>, ["EMT"]); (1<Worker/Shift>,["Doctor"])];                             Length=8.0<Hour/Shift>;    Strain=1.2<Strain/Shift>}
+           {Name="Late Shift";    RequiredPersonal=[(1<Worker/Shift>, ["EMT"]); (1<Worker/Shift>,["Doctor"]); (1<Worker/Shift>, ["Nurse"])]; Length=8.0<Hour/Shift>;    Strain=1.0<Strain/Shift>}
+           {Name="Night Shift";   RequiredPersonal=[(1<Worker/Shift>, ["Doctor"])];                                                      Length=8.0<Hour/Shift>;    Strain=1.8<Strain/Shift>}
        ]
 
     let workers = 
        [
-           {Name="Jenna";    Occupation = "EMT";     Wage=25.0<Euro/Hour>}
-           {Name="Hannah";   Occupation = "Nurse";   Wage=20.0<Euro/Hour>}
-           {Name="George";   Occupation = "Doctor";  Wage=30.0<Euro/Hour>}
-           {Name="Freddy";   Occupation = "Doctor";  Wage=31.0<Euro/Hour>}
-           {Name="Kiley";    Occupation = "Doctor";  Wage=28.0<Euro/Hour>}
-           {Name="Delta";    Occupation = "EMT";     Wage=24.0<Euro/Hour>}
-           {Name="Marlee";   Occupation = "Doctor";  Wage=34.0<Euro/Hour>}
-           {Name="Tucker";   Occupation = "Nurse";   Wage=18.0<Euro/Hour>}
-           {Name="Lawrence"; Occupation = "EMT";     Wage=25.0<Euro/Hour>}
+           {Name="Jenna";    Occupation = ["EMT"];     Wage=25.0<Euro/Hour>}
+           {Name="Hannah";   Occupation = ["Nurse"];   Wage=20.0<Euro/Hour>}
+           {Name="George";   Occupation = ["Doctor"];  Wage=30.0<Euro/Hour>}
+           {Name="Freddy";   Occupation = ["Doctor"];  Wage=31.0<Euro/Hour>}
+           {Name="Kiley";    Occupation = ["Doctor"];  Wage=28.0<Euro/Hour>}
+           {Name="Delta";    Occupation = ["EMT"];     Wage=24.0<Euro/Hour>}
+           {Name="Marlee";   Occupation = ["Doctor"];  Wage=34.0<Euro/Hour>}
+           {Name="Tucker";   Occupation = ["Nurse"];   Wage=18.0<Euro/Hour>}
+           {Name="Lawrence"; Occupation = ["EMT"];     Wage=25.0<Euro/Hour>}
        ]
 
     let simplexschedule =
