@@ -46,7 +46,7 @@ type Employee = {
 type ShiftInfo = {
     Name: string
     Length: float<Hour/Shift>
-    RequiredPersonal: (int<Worker/Shift> * string list) list
+    RequiredPersonnel: (int<Worker/Shift> * string list) list
     Strain: float<Strain/Shift>
 }
 
@@ -137,7 +137,7 @@ let constructProblem (problem:Problem) =
                 for y=0 to schedule.weeks.[x].days.Length - 1 do
                     for z=0 to schedule.weeks.[x].days.[y].timeSlots.Length - 1 do
                         for shift in schedule.weeks.[x].days.[y].timeSlots.[z].shifts do
-                            for (reqWorkers, qualification) in shift.RequiredPersonal ->
+                            for (reqWorkers, qualification) in shift.RequiredPersonnel ->
                                 sum(shouldWork.[Where (fun employee -> employee.Occupation = qualification),x,y,z,shift]) >== float(reqWorkers) * 1.0<Shift>
         }
 
@@ -244,9 +244,9 @@ let constructProblem (problem:Problem) =
 let testCase() =
     let shifts = 
        [    
-           {Name="Morning Shift"; RequiredPersonal=[(1<Worker/Shift>, ["EMT"]); (1<Worker/Shift>,["Doctor"])];                             Length=8.0<Hour/Shift>;    Strain=1.2<Strain/Shift>}
-           {Name="Late Shift";    RequiredPersonal=[(1<Worker/Shift>, ["EMT"]); (1<Worker/Shift>,["Doctor"]); (1<Worker/Shift>, ["Nurse"])]; Length=8.0<Hour/Shift>;    Strain=1.0<Strain/Shift>}
-           {Name="Night Shift";   RequiredPersonal=[(1<Worker/Shift>, ["Doctor"])];                                                      Length=8.0<Hour/Shift>;    Strain=1.8<Strain/Shift>}
+           {Name="Morning Shift"; RequiredPersonnel=[(1<Worker/Shift>, ["EMT"]); (1<Worker/Shift>,["Doctor"])];                             Length=8.0<Hour/Shift>;    Strain=1.2<Strain/Shift>}
+           {Name="Late Shift";    RequiredPersonnel=[(1<Worker/Shift>, ["EMT"]); (1<Worker/Shift>,["Doctor"]); (1<Worker/Shift>, ["Nurse"])]; Length=8.0<Hour/Shift>;    Strain=1.0<Strain/Shift>}
+           {Name="Night Shift";   RequiredPersonnel=[(1<Worker/Shift>, ["Doctor"])];                                                      Length=8.0<Hour/Shift>;    Strain=1.8<Strain/Shift>}
        ]
 
     let workers = 
