@@ -26,7 +26,7 @@ open System.Diagnostics
 type Options = {
     ExpenseMinimizing:bool
     StrainMinimizing:bool
-    EnsureQualifiedPersonellConstraint:bool
+    EnsureQualifiedPersonnelConstraint:bool
     NoDoubleShiftConstraint:bool
     CapMaximumWorkingHoursConstraint:bool
 }
@@ -226,7 +226,7 @@ let constructProblem (problem:Problem) =
                 Model.create minimizeCosts
                 |> Model.addObjective minimizeStrain
 
-        if options.EnsureQualifiedPersonellConstraint then
+        if options.EnsureQualifiedPersonnelConstraint then
             model <- Model.addConstraints qualifiedConstraints model
         if options.NoDoubleShiftConstraint then
             model <- Model.addConstraints noDoubleShiftConstraint model
@@ -339,7 +339,7 @@ let testCase() =
                 ExpenseMinimizing=true;
                 StrainMinimizing=true;
                 CapMaximumWorkingHoursConstraint=true;
-                EnsureQualifiedPersonellConstraint=true;
+                EnsureQualifiedPersonnelConstraint=true;
                 NoDoubleShiftConstraint=true
             }
     }
