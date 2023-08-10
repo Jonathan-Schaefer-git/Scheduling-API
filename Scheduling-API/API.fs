@@ -46,9 +46,9 @@ let apiRoutes =
 [<EntryPoint>]
 let main argv =
     
-    ModularisedScheduling.testCase() |> JsonConvert.SerializeObject |> printfn "%s"
+    // ModularisedScheduling.testCase() |> JsonConvert.SerializeObject |> printfn "%s"
 
-    //ModularisedScheduling.testCase() |> constructProblem |> printfn "%A"
+    ModularisedScheduling.testCase() |> constructProblem |> printfn "%A"
 
     let myCfg =
        { Suave.Web.defaultConfig with
