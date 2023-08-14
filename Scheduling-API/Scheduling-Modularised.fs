@@ -131,6 +131,9 @@ let constructProblem (problem:Problem) =
                                 Boolean
         } |> SMap5.ofSeq
         
+
+    let containsAllElements list1 list2 =
+        List.forall (fun elem -> List.contains elem list1) list2
     //! Constraints
 
     // Ensures sufficient, qualified staffing
@@ -141,7 +144,7 @@ let constructProblem (problem:Problem) =
                     for z=0 to Schedule.Weeks.[x].Days.[y].TimeSlots.Length - 1 do
                         for shift in Schedule.Weeks.[x].Days.[y].TimeSlots.[z].Shifts do
                             for reqPersonnel in shift.RequiredPersonnel ->
-                                sum(shouldWork.[Where (fun employee -> employee.Occupations = reqPersonnel.RequiredQualifications),x,y,z,shift]) >== float(reqPersonnel.Count) * 1.0<Shift>
+                                sum(shouldWork.[Where (fun employee -> containsAllElements employee.Occupations reqPersonnel.RequiredQualifications),x,y,z,shift]) >== float(reqPersonnel.Count) * 1.0<Shift>
         }
 
     // Maximum worktime per week
