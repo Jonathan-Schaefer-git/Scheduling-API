@@ -75,7 +75,9 @@ type Problem =
 
 type Solution =
     { Status: bool
-      Result: string list list list list list }
+      Result: string list list list list list
+      ObjectiveCost: float<Euro>
+      ObjectiveStrain: float<Strain> }
 
 let problemToProtocol problem (stopwatch: Stopwatch) (success: bool) : unit =
     let shiftsPerWeek =
@@ -225,12 +227,17 @@ let constructProblem (problem: Problem) =
                                               if x.[employee] = 1.0<Shift> then
                                                   yield employee.Name ] ] ] ] ]
 
-            { Status = true; Result = resultMatrix }
+            { Status = true
+              Result = resultMatrix
+              ObjectiveCost = Objective.evaluate solution minimizeCosts
+              ObjectiveStrain = Objective.evaluate solution minimizeStrain }
         | _ ->
             problemToProtocol problem stopwatch false
 
             { Status = false
-              Result = [ [ [ [ [ sprintf "[Error]: Model infeasible -> %A" result ] ] ] ] ] }
+              Result = [ [ [ [ [ sprintf "[Error]: Model infeasible -> %A" result ] ] ] ] ]
+              ObjectiveCost = 0.0<Euro>
+              ObjectiveStrain = 0.0<Strain> }
 
 
     // Prepare for stats extraction
@@ -238,7 +245,6 @@ let constructProblem (problem: Problem) =
     //! Solve model
     let solved =
         let options = problem.Options
-
 
         let mutable model =
             match (options.ExpenseMinimizing, options.StrainMinimizing) with
