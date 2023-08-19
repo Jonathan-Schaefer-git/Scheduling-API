@@ -188,11 +188,12 @@ let constructProblem (problem: Problem) =
                         yield sum (shouldWork.[employee, x, y, All, All]) <== 1.0<Shift>
         }
 
-    //! Objectives
+    let median list =
+        let len = List.length list
+        if len % 2 = 0 then list[len / 2 - 1] else list[len / 2]
+
     let minimizeStrain =
-        [ for employee in workers do
-              sum (shouldWork.[employee, All, All, All, All] .* strainOfShifts) ]
-        |> List.sum
+        sum (shouldWork.[median workers, All, All, All, All] .* strainOfShifts)
         |> Objective.create "Minimize strain on workers" Minimize
 
     let minimizeCosts =
@@ -263,7 +264,7 @@ let constructProblem (problem: Problem) =
 
         model |> Solver.solve Settings.basic
 
-    stopwatch.Stop()
+
     retrieveSolutionValues solved stopwatch
 
 
