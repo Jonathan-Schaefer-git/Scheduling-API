@@ -188,12 +188,17 @@ let constructProblem (problem: Problem) =
                         yield sum (shouldWork.[employee, x, y, All, All]) <== 1.0<Shift>
         }
 
-    let median list =
+    let medianEmployeeByWage (list: Employee list) =
+        let sortedList = list |> List.sortBy (fun emp -> emp.Wage)
         let len = List.length list
-        if len % 2 = 0 then list[len / 2 - 1] else list[len / 2]
+
+        if len % 2 = 0 then
+            sortedList[len / 2 - 1]
+        else
+            sortedList[len / 2]
 
     let minimizeStrain =
-        sum (shouldWork.[median workers, All, All, All, All] .* strainOfShifts)
+        sum (shouldWork.[medianEmployeeByWage workers, All, All, All, All] .* strainOfShifts)
         |> Objective.create "Minimize strain on workers" Minimize
 
     let minimizeCosts =
