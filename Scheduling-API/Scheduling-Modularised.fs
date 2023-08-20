@@ -37,7 +37,8 @@ type Options =
       StrainMinimizing: bool
       EnsureQualifiedPersonnelConstraint: bool
       NoDoubleShiftConstraint: bool
-      CapMaximumWorkingHoursConstraint: bool }
+      MaximumWorkingHoursConstraint: bool
+      MinimumWorkingHoursConstraint: bool }
 
 //! Domain Model
 
@@ -71,6 +72,7 @@ type Problem =
     { Workers: Employee list
       Schedule: Schedule
       MaxHoursPerWeek: float<Hour>
+      MinHoursPerWeek: float<Hour>
       Options: Options }
 
 type Solution =
@@ -110,6 +112,7 @@ let constructProblem (problem: Problem) =
     let workers = problem.Workers
     let Schedule = problem.Schedule
     let maxHoursPerWeek = problem.MaxHoursPerWeek
+    let minHoursPerWeek = problem.MinHoursPerWeek
 
     let workersWage = [ for record in workers -> record, record.Wage ] |> SMap.ofList
 
@@ -177,6 +180,15 @@ let constructProblem (problem: Problem) =
                     yield
                         sum (shouldWork.[employee, week, All, All, All] .* shiftLength.[week, All, All, All])
                         <== maxHoursPerWeek
+        }
+
+    let minimumHoursConstraint =
+        ConstraintBuilder "Minimum hours constraint" {
+            for employee in workers do
+                for week = 0 to Schedule.Weeks.Length - 1 do
+                    yield
+                        sum (shouldWork.[employee, week, All, All, All] .* shiftLength.[week, All, All, All])
+                        >== minHoursPerWeek
         }
 
     // No double shift on one day can be worked
@@ -264,8 +276,11 @@ let constructProblem (problem: Problem) =
         if options.NoDoubleShiftConstraint then
             model <- Model.addConstraints noDoubleShiftConstraint model
 
-        if options.CapMaximumWorkingHoursConstraint then
+        if options.MaximumWorkingHoursConstraint then
             model <- Model.addConstraints maxHoursConstraints model
+
+        if options.MinimumWorkingHoursConstraint then
+            model <- Model.addConstraints minimumHoursConstraint model
 
         model |> Solver.solve Settings.basic
 
@@ -369,9 +384,11 @@ let testCase () =
     { Workers = workers
       Schedule = simplexSchedule
       MaxHoursPerWeek = 50.0<Hour>
+      MinHoursPerWeek = 0.0<Hour>
       Options =
         { ExpenseMinimizing = true
           StrainMinimizing = true
-          CapMaximumWorkingHoursConstraint = true
+          MaximumWorkingHoursConstraint = true
           EnsureQualifiedPersonnelConstraint = true
-          NoDoubleShiftConstraint = true } }
+          NoDoubleShiftConstraint = true
+          MinimumWorkingHoursConstraint = false } }
